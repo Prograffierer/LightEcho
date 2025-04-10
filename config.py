@@ -1,0 +1,2 @@
+SER1 = "COM5"
+SER2 = "COM7"
