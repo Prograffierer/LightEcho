@@ -15,6 +15,8 @@ pad = 5
 frame_color = (50, 50, 50)
 bg_color = "black"
 
+FORBIDDEN = [{0, 8}, {2, 6}]
+
 
 def color_for_rect(i):
     hsva = (100 / 9 * i, 100, 100, 100)
@@ -116,7 +118,7 @@ class PresentScene(SequenceScene):
         super().__init__(root, sequence)
         if len(self.sequence) > 0:
             new = self.sequence[-1]
-            while new == self.sequence[-1]:
+            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN:
                 new = random.randint(0, 8)
         else:
             new = random.randint(0, 8)
