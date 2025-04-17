@@ -19,3 +19,7 @@ Der Raspberry sendet ein Byte, die ein uint8 codiert. Diese kann eigentlich nur 
 ## Verteilung zwischen Arduinos
 Arduino 1 empfängt Piezos 0 bis 5 (A0-A5) und steuert LED-Strips 0 bis 5 (3, 5, 6, 9, 10, 11).
 Arduino 2 empfängt Piezos 6 bis 8 (A0-A2) und steuert LED-Strips 6 bis 8 (3, 5, 6) sowie RGB (9, 10, 11).
+
+## Tagesmanagement
+Da der Raspberry keine echte Zeit hat, müssen wir auf unsere Uptime-Rechnungen vertrauen, um die Tage zu zählen.
+Sobald sich der Raspberry aus Uptime-Gründen kontrolliert ausschaltet, erstellt er eine Datei highscore_000.txt usw, jeweils mit dem jeweiligen Tag als Suffix. Dort wird natürlich der Tageshighscore reingeschrieben (ansonsten steht der Highscore immer in highscore.txt). Jedes Skript findet dann durch einen Check der existierenden Dateien den aktuellen Tag.

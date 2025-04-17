@@ -71,7 +71,7 @@ void loop() {
   int foundSth = 0;
   digitalWrite(13, HIGH);
   while (foundSth == 0){
-    for (j = 0; (j < 100) && (foundSth == 0); j++){
+    for (j = 0; (j < 20) && (foundSth == 0); j++){
       for (i = 0; i < s; i++){
         int p = pins[i];
         int f = field[i];
@@ -98,10 +98,10 @@ void loop() {
         execute_cmd(activeField);
         foundSth = 1;
       }
-      if (Serial.available() > 0){
-        activeField = Serial.read();
-        execute_cmd(activeField);
-      }
+    }
+    if (Serial.available() > 0){
+      activeField = Serial.read();
+      execute_cmd(activeField);
     }
   }
 }

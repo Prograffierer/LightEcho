@@ -2,10 +2,29 @@ from __future__ import annotations
 import pygame as pg
 import random
 from time import time, sleep
-import serial
 import logging
 import itertools as it
 from config import *
+import psutil
+import os
+
+try:
+    import laptop
+    TESTMODE = True
+except ModuleNotFoundError:
+    TESTMODE = False
+
+if TESTMODE:
+    import vserial as serial
+    print("""
+********************************************************************************
+          ACHTUNG!!! Das Programm laeuft aktuell im Testmodus! Das sollte auf dem Raspberry nicht passieren.
+          Falls du nicht genau weißt, dass du den Testmodus moechtest, willst du ihn nicht!
+******************************************************************************** 
+          """)
+    sleep(1)
+else:
+    import serial
 
 
 left = 500
@@ -15,7 +34,11 @@ pad = 5
 frame_color = (50, 50, 50)
 bg_color = "black"
 
+# forbidden combos of fields
 FORBIDDEN = [{0, 8}, {2, 6}]
+
+# maximum uptime till shutdown (in s)
+UPTIME = 6 * 60 * 60
 
 
 def color_for_rect(i):
@@ -45,9 +68,45 @@ def draw_rect_with_color(screen, i, color=None):
     pg.draw.rect(screen, color, rect_for_idx(i))
 
 
+def get_uptime():
+    try:
+        with open("/proc/uptime", "r") as f:
+            uptime_seconds = float(f.readline().split()[0])
+    except FileNotFoundError:
+        if not TESTMODE:
+            raise
+        uptime_seconds = 0
+
+    return uptime_seconds
+
+
+class ParallelInstanceRunning(RuntimeError):
+    pass
+
+
 class Root:
     def __init__(self):
-        # if they are already blocked, an error is raised immediately and the script ends without opening a pygame window
+        c = 0
+        c2 = 0
+        for name in map(lambda pc: pc.name, psutil.process_iter(attrs=["name"])):
+            if "python3" in name:
+                c += 1
+            if "py" in name:
+                c2 += 1
+        if c >= 2 and not TESTMODE:
+            self.running = False
+            raise ParallelInstanceRunning(f"{c-1} parallel instance(s) found")
+        elif c == 0:
+            print(f"No process with 'python3' but {c2} with 'py' found")
+
+        self.day = 0
+        while os.path.exists(FOLDER + f"highscore{self.day:03d}"):
+            self.day += 1
+
+        f_idx = 0
+        while os.path.exists(FOLDER + f"log{f_idx:03d}.txt"):
+            f_idx += 1
+        logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO, filename=FOLDER + f"log{f_idx:03d}.txt", datefmt="%Y-%m-%d %H:%M:%S")
         self.ser1 = serial.Serial(SER1)
         self.ser2 = serial.Serial(SER2)
         pg.init()
@@ -56,8 +115,17 @@ class Root:
         self.running = True
         self.active_scene: Scene = None
         self.set_new_scene(WaitForNewGameScene(self))
-        self.textfont = pg.font.Font("ARIBLK.TTF", 100)
-        self.daily_highscore = 0
+        self.textfont = pg.font.Font(FOLDER + "ARIBLK.TTF", 100)
+        self.steps = 0
+        if get_uptime() > UPTIME:
+            self.running = False
+            return
+        try:
+            with open(FOLDER + "highscore.txt") as f:
+                val = int(f.read())
+            self.daily_highscore = val
+        except FileNotFoundError:
+            self.daily_highscore = 0
         
     @property
     def daily_highscore(self):
@@ -66,20 +134,23 @@ class Root:
     @daily_highscore.setter
     def daily_highscore(self, value):
         self._daily_highscore = value
-        # TODO: save this value and load it at startup
+        with open(FOLDER + "highscore.txt", "w") as f:
+            f.write(str(self._daily_highscore))
 
     def mainloop(self):
         while self.running:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     self.running = False
+            if self.steps % 100 == 0:
+                self.check_uptime()
             self.active_scene.check_for_event()
             self.screen.fill(bg_color)
             self.active_scene.draw_on_screen(self.screen)
             pg.display.flip()
+            self.steps += 1
             sleep(1 / 60)
         pg.quit()
-        self.clock.get_time()
 
     def set_new_scene(self, scene: Scene):
         self.active_scene = scene
@@ -90,6 +161,10 @@ class Root:
     def send_to_ser(self, msg: int):
         for ser in (self.ser1, self.ser2):
             ser.write(bytes((msg,)))
+
+    def check_uptime(self):
+        if get_uptime() > UPTIME:
+            self.running = False
 
 
 class Scene:
@@ -123,19 +198,28 @@ class PresentScene(SequenceScene):
         else:
             new = random.randint(0, 8)
         self.sequence.append(new)
+        logging.info(f"Sequence is {" ".join(map(int, self.sequence))}")
         self.start_time = time()
+        self._last_field = 11
 
     def check_for_event(self):
         if time() - self.start_time > self.wait * len(self.sequence):
             self.root.set_new_scene(EchoScene(self.root, self.sequence))
-
-    def draw_on_screen(self, screen):
+        f = self.cur_field()
+        if f != self._last_field:
+            self.root.send_to_ser(f)
+            self._last_field = f
+    
+    def cur_field(self):
         would_take_time = 0
         for element in self.sequence:
             would_take_time += self.wait * min(1, max(0, 1-(len(self.sequence) - 10)/30))
             if time() - would_take_time < self.start_time:
-                break
-        draw_rect_with_color(screen, element)
+                return element
+
+    def draw_on_screen(self, screen):
+        field = self.cur_field
+        draw_rect_with_color(screen, field)
         draw_field_bg(screen)
 
 
@@ -176,6 +260,7 @@ class EchoScene(SequenceScene):
                     self.send_to_ser(self.last_field)
                 else:
                     self.last_field = max_idx
+                    logging.info(f"Answer was {max_idx} with value {max_val}")
                     if not self.remaining_sequence.pop(0) == max_idx:
                         self.send_to_ser(10)
                         self.root.set_new_scene(
@@ -221,8 +306,10 @@ class MistakeScene(Scene):
         self.start_time = time()
         self.root = root
         self.score = score
+        logging.info(f"Mistake. Score was {self.score}")
         if self.root.daily_highscore < score:
             self.root.daily_highscore = score
+            logging.info(f"New highscore {self.root.daily_highscore}")
 
     def check_for_event(self):
         if time() - self.start_time > self.stay_on_screen:
