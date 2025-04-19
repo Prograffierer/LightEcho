@@ -1,6 +1,11 @@
+import os
+
 class Serial:
     def __init__(self, com, **kwargs):
-        self.fname = com
+        self.fname = com + ".txt"
+        if not os.path.exists(self.fname):
+            with open(self.fname, "x"):
+                pass
         self.already_read = []
 
     # def _num(self):
@@ -17,10 +22,13 @@ class Serial:
 
     def read_all(self) -> bytes:
         with open(self.fname) as f:
+            content = f.read(1)
+            if content == "":
+                return bytes()
             try:
-                field = int(f.read(1))
+                field = int(content)
             except ValueError:
-                print("Invalid read")
+                print(f"Invalid read {content}")
                 return bytes()
         self.reset_input_buffer()
         return bytes((field, 255))

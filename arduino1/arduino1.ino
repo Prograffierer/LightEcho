@@ -1,8 +1,19 @@
+// fuer Arduino 1 muss der zweite Block auskommentiert sein und der erste aktiv,
+// fuer Arduino 2 andersrum
+
 unsigned int pins[] = {A0, A1, A2, A3, A4, A5};
 int field[] = {0, 1, 2, 3, 4, 5};
 unsigned int led[] = {3, 5, 6, 9, 10, 11};
 int s = 6;
 bool controlsRGB = false;
+
+/*
+unsigned int pins[] = {A0, A1, A2};
+int field[] = {6, 7, 8};
+unsigned int led[] = {3, 5, 6};
+int s = 3;
+bool controlsRGB = true;
+*/
 
 int activeField = -1;
 int R[] = {255, 255, 178, 0, 0, 0, 0, 178, 255};
@@ -71,7 +82,7 @@ void loop() {
   int foundSth = 0;
   digitalWrite(13, HIGH);
   while (foundSth == 0){
-    for (j = 0; (j < 20) && (foundSth == 0); j++){
+    for (int j = 0; (j < 20) && (foundSth == 0); j++){
       for (i = 0; i < s; i++){
         int p = pins[i];
         int f = field[i];

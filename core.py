@@ -40,6 +40,9 @@ FORBIDDEN = [{0, 8}, {2, 6}]
 # maximum uptime till shutdown (in s)
 UPTIME = 6 * 60 * 60
 
+# time after last interaction till the current game is stopped
+STANDBY_TIMEOUT = 60
+
 
 def color_for_rect(i):
     hsva = (100 / 9 * i, 100, 100, 100)
@@ -88,7 +91,7 @@ class Root:
     def __init__(self):
         c = 0
         c2 = 0
-        for name in map(lambda pc: pc.name, psutil.process_iter(attrs=["name"])):
+        for name in map(lambda pc: pc.name(), psutil.process_iter(attrs=["name"])):
             if "python3" in name:
                 c += 1
             if "py" in name:
@@ -107,15 +110,19 @@ class Root:
         while os.path.exists(FOLDER + f"log{f_idx:03d}.txt"):
             f_idx += 1
         logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO, filename=FOLDER + f"log{f_idx:03d}.txt", datefmt="%Y-%m-%d %H:%M:%S")
+        logging.info(f"--- Day {self.day} ---")
         self.ser1 = serial.Serial(SER1)
         self.ser2 = serial.Serial(SER2)
         pg.init()
-        self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
+        if not TESTMODE:
+            self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
+        else:
+            self.screen = pg.display.set_mode((1500, 900))
         self.clock = pg.time.Clock()
         self.running = True
         self.active_scene: Scene = None
         self.set_new_scene(WaitForNewGameScene(self))
-        self.textfont = pg.font.Font(FOLDER + "ARIBLK.TTF", 100)
+        self.textfont = pg.font.Font(FONT, 100)
         self.steps = 0
         if get_uptime() > UPTIME:
             self.running = False
@@ -198,7 +205,7 @@ class PresentScene(SequenceScene):
         else:
             new = random.randint(0, 8)
         self.sequence.append(new)
-        logging.info(f"Sequence is {" ".join(map(int, self.sequence))}")
+        logging.info(f"Sequence is {" ".join(map(str, self.sequence))}")
         self.start_time = time()
         self._last_field = 11
 
@@ -206,7 +213,7 @@ class PresentScene(SequenceScene):
         if time() - self.start_time > self.wait * len(self.sequence):
             self.root.set_new_scene(EchoScene(self.root, self.sequence))
         f = self.cur_field()
-        if f != self._last_field:
+        if f != self._last_field and f is not None:
             self.root.send_to_ser(f)
             self._last_field = f
     
@@ -218,7 +225,7 @@ class PresentScene(SequenceScene):
                 return element
 
     def draw_on_screen(self, screen):
-        field = self.cur_field
+        field = self.cur_field()
         draw_rect_with_color(screen, field)
         draw_field_bg(screen)
 
@@ -240,7 +247,8 @@ class EchoScene(SequenceScene):
 
     def check_for_event(self):
         try:
-            if time() - self.last_event_time > 20:
+            if time() - self.last_event_time > STANDBY_TIMEOUT:
+                logging.info("Standby")
                 self.root.set_new_scene(WaitForNewGameScene(self.root))
                 return
             if self.ser1.in_waiting > 0 or self.ser2.in_waiting > 0:
@@ -347,12 +355,17 @@ class WaitForNewGameScene(Scene):
         super().__init__(root)
         self.root.ser1.reset_input_buffer()
         self.root.ser1.reset_input_buffer()
+        self.start_time = time()
+        self.blinks = 0
 
     def check_for_event(self):
         s1, s2 = self.root.ser1, self.root.ser2
         for s in (s1, s2):
             if s.in_waiting > 0:
                 self.root.set_new_scene(PresentScene(self.root))
+        if time() - self.start_time >= 2 * self.blinks:
+            self.root.send_to_ser(random.randint(0, 8))
+            self.blinks += 1
 
     def draw_on_screen(self, screen):
         # TODO: Bild einfügen als Standbild für Warten
