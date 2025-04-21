@@ -227,6 +227,7 @@ class PresentScene(SequenceScene):
             would_take_time += self.wait * min(1, max(0, 1-(len(self.sequence) - 10)/30))
             if time() - would_take_time < self.start_time:
                 return element
+        return self.sequence[-1]
 
     def draw_on_screen(self, screen):
         field = self.cur_field()
