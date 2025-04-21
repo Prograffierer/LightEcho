@@ -24,7 +24,7 @@ void setup() {
   Serial.begin(9600);
   Serial.setTimeout(5000);
   for (int i = 0; i < s; i++){
-    pinMode(pins[i], INPUT_PULLUP);
+    pinMode(pins[i], INPUT);
   }
   for (int i = 0; i < s; i++){
     pinMode(led[i], OUTPUT);
@@ -87,7 +87,7 @@ void loop() {
         int p = pins[i];
         int f = field[i];
         int val = analogRead(p);
-        if ((f != activeField) && (val < 600)){
+        if ((f != activeField) && (val > 2)){
           if (start_time == 0){
             start_time = millis();
           }

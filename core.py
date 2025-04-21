@@ -43,6 +43,8 @@ UPTIME = 6 * 60 * 60
 # time after last interaction till the current game is stopped
 STANDBY_TIMEOUT = 60
 
+# bg_standby = pg.image.load("BG_Standby.png")
+
 
 def color_for_rect(i):
     hsva = (100 / 9 * i, 100, 100, 100)
@@ -205,7 +207,8 @@ class PresentScene(SequenceScene):
         else:
             new = random.randint(0, 8)
         self.sequence.append(new)
-        logging.info(f"Sequence is {" ".join(map(str, self.sequence))}")
+        seq_str = " ".join(map(str, self.sequence))
+        logging.info(f"Sequence is {seq_str}")
         self.start_time = time()
         self._last_field = 11
 
