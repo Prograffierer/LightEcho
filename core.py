@@ -7,6 +7,7 @@ import itertools as it
 from config import *
 import psutil
 import os
+import traceback
 
 try:
     import laptop
@@ -380,4 +381,10 @@ class WaitForNewGameScene(Scene):
 
 if __name__ == "__main__":
     root = Root()
-    root.mainloop()
+    try:
+        root.mainloop()
+    except Exception as e:
+        logging.error(str(e))
+        for l in traceback.format_exception(e):
+            logging.info(l[:-1])
+        raise

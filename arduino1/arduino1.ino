@@ -87,7 +87,7 @@ void loop() {
         int p = pins[i];
         int f = field[i];
         int val = analogRead(p);
-        if ((f != activeField) && (val > 2)){
+        if ((f != activeField) && (val > 10)){
           if (start_time == 0){
             start_time = millis();
           }
