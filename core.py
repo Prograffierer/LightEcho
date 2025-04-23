@@ -146,12 +146,12 @@ class Root:
         sleep(2)
         # set threshold to THRESH
         self.send_to_ser(12)
-        self.send_to_ser(THRESH)
+        self.send_to_ser(THRESH*4)
         # set factors
         for i, factor in enumerate(FACTORS):
             self.send_to_ser(13)
             self.send_to_ser(i)
-            self.send_to_ser(int(255*factor))
+            self.send_to_ser(int(255*factor*4))
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
