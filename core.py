@@ -143,7 +143,7 @@ class Root:
         logging.info(f"--- Day {self.day} ---")
         self.ser1 = serial.Serial(SER1, timeout=2)
         self.ser2 = serial.Serial(SER2, timeout=2)
-        sleep(0.5)
+        sleep(2)
         # set threshold to 10
         self.send_to_ser(12)
         self.send_to_ser(10)
@@ -431,13 +431,13 @@ class WaitForNewGameScene(Scene):
         self.root.send_to_ser(16)
         logging.info("Config check")
         logging.info("From ser1:")
-        logging.info(self.root.ser1.readline().decode())
-        logging.info(self.root.ser1.readline().decode())
-        logging.info(self.root.ser1.readline().decode())
+        logging.info(self.root.ser1.readline().decode()[:-1])
+        logging.info(self.root.ser1.readline().decode()[:-1])
+        logging.info(self.root.ser1.readline().decode()[:-1])
         logging.info("From ser2:")
-        logging.info(self.root.ser2.readline().decode())
-        logging.info(self.root.ser2.readline().decode())
-        logging.info(self.root.ser2.readline().decode())
+        logging.info(self.root.ser2.readline().decode()[:-1])
+        logging.info(self.root.ser2.readline().decode()[:-1])
+        logging.info(self.root.ser2.readline().decode()[:-1])
         self.start_time = time()
         self.blinks = 0
 
