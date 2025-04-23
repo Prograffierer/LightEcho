@@ -144,16 +144,14 @@ class Root:
         self.ser1 = serial.Serial(SER1, timeout=2)
         self.ser2 = serial.Serial(SER2, timeout=2)
         sleep(2)
-        # set threshold to 10
+        # set threshold to THRESH
         self.send_to_ser(12)
-        self.send_to_ser(10)
-        # set factor of 2 to 0.6
-        self.send_to_ser(13)
-        self.send_to_ser(2)
-        self.send_to_ser(int(255*0.6))
-        # set 2 deactivated
-        self.send_to_ser(14)
-        self.send_to_ser(2)
+        self.send_to_ser(THRESH)
+        # set factors
+        for i, factor in enumerate(FACTORS):
+            self.send_to_ser(13)
+            self.send_to_ser(i)
+            self.send_to_ser(int(255*factor))
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)

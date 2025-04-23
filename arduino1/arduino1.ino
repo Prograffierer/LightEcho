@@ -3,7 +3,7 @@
 
 unsigned int pins[] = {A0, A1, A2, A3, A4, A5};
 int field[] = {0, 1, 2, 3, 4, 5};
-float factor[] = {1.0, 1.0, 0.5, 1.0, 1.0, 1.0};
+float factor[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 unsigned int led[] = {3, 5, 6, 9, 10, 11};
 int s = 6;
 bool controlsRGB = false;
@@ -71,15 +71,15 @@ void execute_cmd(int cmd) {
       }
     }
   } else if ((cmd == 9) || (cmd == 10)) {
-    int kreis[] = {0, 1, 2, 5, 8, 7, 6, 3};
-    for (int j=0; j<8; j++) {
+    int kreis[] = {0, 1, 2, 5, 8, 7, 6, 3, 0};
+    for (int j=0; j<9; j++) {
       set_val_for_all_led(LOW);
       for (int i=0; i<s; i++) {
-        if (field[i] == j){
+        if (field[i] == kreis[j]){
           digitalWrite(led[i], HIGH);
         }
       }
-      delay(250);
+      delay(200);
     }
     set_val_for_all_led(LOW);
   } else if (cmd == 12) {
