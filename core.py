@@ -139,6 +139,7 @@ class Root:
         while os.path.exists(FOLDER + f"log{f_idx:03d}.txt"):
             f_idx += 1
         logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO, filename=FOLDER + f"log{f_idx:03d}.txt", datefmt="%Y-%m-%d %H:%M:%S")
+        logging.getLogger().addHandler(logging.StreamHandler())
         logging.info(f"--- Day {self.day} ---")
         self.ser1 = serial.Serial(SER1, timeout=2)
         self.ser2 = serial.Serial(SER2, timeout=2)
@@ -440,6 +441,7 @@ class WaitForNewGameScene(Scene):
         s1, s2 = self.root.ser1, self.root.ser2
         for s in (s1, s2):
             if s.in_waiting > 0:
+                logging.info(f"Started game with {s.read()} and val {s.read()}")
                 self.root.set_new_scene(PresentScene(self.root))
         if time() - self.start_time >= 2 * self.blinks:
             self.root.send_to_ser(random.randint(0, 8))
