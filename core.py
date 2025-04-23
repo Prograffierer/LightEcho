@@ -147,6 +147,13 @@ class Root:
         # set threshold to 10
         self.send_to_ser(12)
         self.send_to_ser(10)
+        # set factor of 2 to 0.6
+        self.send_to_ser(13)
+        self.send_to_ser(2)
+        self.send_to_ser(int(255*0.6))
+        # set 2 deactivated
+        self.send_to_ser(14)
+        self.send_to_ser(2)
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
