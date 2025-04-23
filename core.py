@@ -28,9 +28,9 @@ else:
     import serial
 
 
-left = 500
-top = 200
-size = 200
+left = 200
+top = 100
+size = 300
 pad = 5
 frame_color = (50, 50, 50)
 bg_color = "black"
@@ -39,12 +39,16 @@ bg_color = "black"
 FORBIDDEN = [{0, 8}, {2, 6}]
 
 # maximum uptime till shutdown (in s)
-UPTIME = 6 * 60 * 60
+UPTIME = (6*60 - 5) * 60
 
 # time after last interaction till the current game is stopped
-STANDBY_TIMEOUT = 60
+STANDBY_TIMEOUT = 15
 
-# bg_standby = pg.image.load("BG_Standby.png")
+bg_standby = pg.image.load(IM_FOLDER + "BG_Standby.png")
+bg_standby = pg.transform.scale(bg_standby, (1920, 1080))
+
+bg_game = pg.image.load(IM_FOLDER + "BG_Game.png")
+bg_game = pg.transform.scale(bg_game, (1920, 1080))
 
 
 def color_for_rect(i):
@@ -63,9 +67,31 @@ def rect_for_idx(i, pad=True):
         return pg.Rect(left + size * (i % 3), top + size * (i // 3), size, size)
 
 
-def draw_field_bg(screen):
-    for i in range(9):
-        pg.draw.rect(screen, frame_color, rect_for_idx(i, pad=False), 2)
+def draw_game_bg(screen: pg.Surface, font: pg.font.Font, cur_score, highscore, draw_field=True):
+    screen.blit(bg_game, (0, 0))
+    if draw_field:
+        for i in range(9):
+            pg.draw.rect(screen, frame_color, rect_for_idx(i, pad=False), 2)
+    text = font.render(str(cur_score), True, "white", bg_color)
+    textRect = text.get_rect()
+    textRect.center = (1440, 260)
+    screen.blit(text, textRect)
+    text = font.render(str(max(cur_score, highscore)), True, "white", bg_color)
+    textRect = text.get_rect()
+    textRect.center = (1440, 580)
+    screen.blit(text, textRect)
+
+
+def draw_text(screen: pg.Surface, msg: str, font: pg.font.Font):
+    lines = msg.split("\n")
+    y = 300
+    for line in lines:
+        text = font.render(line, True, "white", bg_color)
+        textRect = text.get_rect()
+        textRect.centerx = 600
+        textRect.top = y
+        y += textRect.height
+        screen.blit(text, textRect)
 
 
 def draw_rect_with_color(screen, i, color=None):
@@ -114,18 +140,19 @@ class Root:
             f_idx += 1
         logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO, filename=FOLDER + f"log{f_idx:03d}.txt", datefmt="%Y-%m-%d %H:%M:%S")
         logging.info(f"--- Day {self.day} ---")
-        self.ser1 = serial.Serial(SER1)
-        self.ser2 = serial.Serial(SER2)
+        self.ser1 = serial.Serial(SER1, timeout=2)
+        self.ser2 = serial.Serial(SER2, timeout=2)
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
         else:
-            self.screen = pg.display.set_mode((1500, 900))
+            self.screen = pg.display.set_mode((1920, 1080))
         self.clock = pg.time.Clock()
         self.running = True
         self.active_scene: Scene = None
         self.set_new_scene(WaitForNewGameScene(self))
-        self.textfont = pg.font.Font(FONT, 100)
+        self.numfont = pg.font.Font(FONT, 140)
+        self.msgfont = pg.font.Font(FONT, 80)
         self.steps = 0
         if get_uptime() > UPTIME:
             self.running = False
@@ -152,6 +179,8 @@ class Root:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     self.running = False
+                elif event.type == pg.MOUSEBUTTONDOWN:
+                    print(event.pos)
             if self.steps % 100 == 0:
                 self.check_uptime()
             self.active_scene.check_for_event()
@@ -231,8 +260,8 @@ class PresentScene(SequenceScene):
 
     def draw_on_screen(self, screen):
         field = self.cur_field()
+        draw_game_bg(screen, self.root.numfont, len(self.sequence) - 1, self.root.daily_highscore)
         draw_rect_with_color(screen, field)
-        draw_field_bg(screen)
 
 
 class EchoScene(SequenceScene):
@@ -254,6 +283,10 @@ class EchoScene(SequenceScene):
         try:
             if time() - self.last_event_time > STANDBY_TIMEOUT:
                 logging.info("Standby")
+                score = len(self.sequence) - 1
+                if self.root.daily_highscore < score:
+                    self.root.daily_highscore = score
+                    logging.info(f"New highscore {self.root.daily_highscore}")
                 self.root.set_new_scene(WaitForNewGameScene(self.root))
                 return
             if self.ser1.in_waiting > 0 or self.ser2.in_waiting > 0:
@@ -307,7 +340,7 @@ class EchoScene(SequenceScene):
         return field, value
 
     def draw_on_screen(self, screen):
-        draw_field_bg(screen)
+        draw_game_bg(screen, self.root.numfont, len(self.sequence) - 1, self.root.daily_highscore)
         if self.last_field is not None:
             draw_rect_with_color(screen, self.last_field)
 
@@ -320,19 +353,31 @@ class MistakeScene(Scene):
         self.root = root
         self.score = score
         logging.info(f"Mistake. Score was {self.score}")
+        if score <= 3:
+            msgs = [
+                "Schade, das war\ndas falsche Feld :(",
+                "Leider falsch...",
+                "Nicht ganz richtig..."
+            ]
+        elif score <= 6:
+            msgs = [
+                f"Nach {score} richtigen Feldern\nein kleiner Fehler...\nSehr stark!",
+                f"{score} Felder - super!",
+                f"Du hast {score} Felder\nrichtig - Respekt :)"
+            ]
         if self.root.daily_highscore < score:
             self.root.daily_highscore = score
             logging.info(f"New highscore {self.root.daily_highscore}")
+            msgs = ["Du hast den\nHighscore gebrochen!!!\nHerzlichen Glückwunsch!"]
+        self.msg = random.choice(msgs)
 
     def check_for_event(self):
         if time() - self.start_time > self.stay_on_screen:
             self.root.set_new_scene(WaitForNewGameScene(self.root))
 
     def draw_on_screen(self, screen: pg.Surface):
-        text = self.root.textfont.render(f"{self.score} hast du geschafft!", True, "white", bg_color)
-        textRect = text.get_rect()
-        textRect.center = (1920//2, 300)
-        screen.blit(text, textRect)
+        draw_game_bg(screen, self.root.numfont, self.score, self.root.daily_highscore, draw_field=False)
+        draw_text(screen, self.msg, self.root.msgfont)
 
 
 class SuccessScene(Scene):
@@ -342,6 +387,25 @@ class SuccessScene(Scene):
         super().__init__(root)
         self.start_time = time()
         self.seq = seq
+        score = len(self.seq)
+        msgs = [
+            "Super!",
+            "Gut gemacht!",
+            "Sehr gut!",
+        ]
+        if score > 3:
+            msgs.extend([
+                "Glückwunsch, alles richtig!",
+                "Schon wieder richtig!",
+                "Alles perfekt :)",
+            ])
+        if score > 6:
+            msgs.extend([
+                "Wow, du hast ein\ngutes Gedächtnis ;)",
+                "Richtig stark!",
+                "Immer noch alles richtig!",
+            ])
+        self.msg = random.choice(msgs)
 
     def check_for_event(self):
         if time() - self.start_time > self.stay_on_screen:
@@ -349,10 +413,9 @@ class SuccessScene(Scene):
             self.root.set_new_scene(PresentScene(self.root, sequence=self.seq))
 
     def draw_on_screen(self, screen: pg.Surface):
-        text = self.root.textfont.render(f"Alles richtig!", True, "white", bg_color)
-        textRect = text.get_rect()
-        textRect.center = (400, 300)
-        screen.blit(text, textRect)
+        score = len(self.seq)
+        draw_game_bg(screen, self.root.numfont, score, self.root.daily_highscore, draw_field=False)
+        draw_text(screen, self.msg, self.root.msgfont)
 
 
 class WaitForNewGameScene(Scene):
@@ -360,6 +423,16 @@ class WaitForNewGameScene(Scene):
         super().__init__(root)
         self.root.ser1.reset_input_buffer()
         self.root.ser1.reset_input_buffer()
+        self.root.send_to_ser(16)
+        logging.info("Config check")
+        logging.info("From ser1:")
+        logging.info(self.root.ser1.readline())
+        logging.info(self.root.ser1.readline())
+        logging.info(self.root.ser1.readline())
+        logging.info("From ser2:")
+        logging.info(self.root.ser2.readline())
+        logging.info(self.root.ser2.readline())
+        logging.info(self.root.ser2.readline())
         self.start_time = time()
         self.blinks = 0
 
@@ -372,11 +445,11 @@ class WaitForNewGameScene(Scene):
             self.root.send_to_ser(random.randint(0, 8))
             self.blinks += 1
 
-    def draw_on_screen(self, screen):
-        # TODO: Bild einfügen als Standbild für Warten
-        text = self.root.textfont.render(f"Highscore: {self.root.daily_highscore}", True, "white", bg_color)
+    def draw_on_screen(self, screen: pg.Surface):
+        screen.blit(bg_standby, (0, 0))
+        text = self.root.numfont.render(str(self.root.daily_highscore), True, "white", bg_color)
         textRect = text.get_rect()
-        textRect.center = (800, 300)
+        textRect.center = (920, 970)
         screen.blit(text, textRect)
 
 

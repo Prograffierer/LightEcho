@@ -15,6 +15,11 @@ Das erste stellt das Feld dar, das zweite den Pin-Wert // 4.
 
 ### Raspi -> Arduino
 Der Raspberry sendet ein Byte, die ein uint8 codiert. Diese kann eigentlich nur Werte zwischen 0 und 11 annehmen, 0-8 für das aktuell aktive Feld, 9 für "alles grün", 10 für "alles rot", 11 für "Reset" (einfach alles ausschalten).
+Extra commands:
+12 -> wartet auf nächstes Byte: Schwellwert -> setzt Schwellwert (ist dann halt eingeschränkt zwischen 0 und 255, aber höhere Werte werden wsh nicht als Schwellwert verwendet)
+13 -> nächstes Byte (0-8): field_idx; nächstes Byte (0-255): Vorfaktor * 255
+14/15 -> nächstes Byte: deactivate1/2
+16 -> get config info in plain text (3 lines)
 
 ## Verteilung zwischen Arduinos
 Arduino 1 empfängt Piezos 0 bis 5 (A0-A5) und steuert LED-Strips 0 bis 5 (3, 5, 6, 9, 10, 11).

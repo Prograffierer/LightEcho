@@ -3,6 +3,7 @@
 
 unsigned int pins[] = {A0, A1, A2, A3, A4, A5};
 int field[] = {0, 1, 2, 3, 4, 5};
+float factor[] = {1.0, 1.0, 0.5, 1.0, 1.0, 1.0};
 unsigned int led[] = {3, 5, 6, 9, 10, 11};
 int s = 6;
 bool controlsRGB = false;
@@ -10,6 +11,7 @@ bool controlsRGB = false;
 /*
 unsigned int pins[] = {A0, A1, A2};
 int field[] = {6, 7, 8};
+float factor[] = {1.0, 1.0, 1.0};
 unsigned int led[] = {3, 5, 6};
 int s = 3;
 bool controlsRGB = true;
@@ -19,10 +21,13 @@ int activeField = -1;
 int R[] = {255, 255, 178, 0, 0, 0, 0, 178, 255};
 int G[] = {0, 178, 255, 255, 255, 178, 0, 0, 0};
 int B[] = {0, 0, 0, 0, 178, 255, 255, 255, 178};
+int threshold = 4;
+int deactivate1 = -1;
+int deactivate2 = -1;
 
 void setup() {
   Serial.begin(9600);
-  Serial.setTimeout(5000);
+  Serial.setTimeout(2000);
   for (int i = 0; i < s; i++){
     pinMode(pins[i], INPUT);
   }
@@ -66,9 +71,64 @@ void execute_cmd(int cmd) {
       }
     }
   } else if ((cmd == 9) || (cmd == 10)) {
-    set_val_for_all_led(HIGH);
-    delay(1000);
+    int kreis[] = {0, 1, 2, 5, 8, 7, 6, 3};
+    for (int j=0; j<8; j++) {
+      set_val_for_all_led(LOW);
+      for (int i=0; i<s; i++) {
+        if (field[i] == j){
+          digitalWrite(led[i], HIGH);
+        }
+      }
+      delay(250);
+    }
     set_val_for_all_led(LOW);
+  } else if (cmd == 12) {
+    unsigned long timeout_start = millis();
+    while ((Serial.available() == 0) && (millis() - timeout_start < 1000)){}
+    if (Serial.available() > 0){
+      threshold = Serial.read();
+    }
+  } else if (cmd == 13) {
+    unsigned long timeout_start = millis();
+    while ((Serial.available() == 0) && (millis() - timeout_start < 1000)){}
+    if (Serial.available() > 0){
+      int field_idx = Serial.read();
+      unsigned long timeout_start = millis();
+      while ((Serial.available() == 0) && (millis() - timeout_start < 1000)){}
+      if (Serial.available() > 0){
+        float f = (float)Serial.read() / 255.0;
+        for (int i=0; i<s; i++) {
+          if (field[i] == field_idx){
+            factor[i] = f;
+          }
+        }
+      }
+    }
+  } else if (cmd == 14) {
+    unsigned long timeout_start = millis();
+    while ((Serial.available() == 0) && (millis() - timeout_start < 1000)){}
+    if (Serial.available() > 0){
+      deactivate1 = Serial.read();
+    }
+  } else if (cmd == 15) {
+    unsigned long timeout_start = millis();
+    while ((Serial.available() == 0) && (millis() - timeout_start < 1000)){}
+    if (Serial.available() > 0){
+      deactivate2 = Serial.read();
+    }
+  } else if (cmd == 16) {
+    Serial.print("Threshold: ");
+    Serial.println(threshold);
+    Serial.print("Factors: ");
+    for (int i=0; i<s; i++){
+      Serial.print(factor[i]);
+      Serial.print(" ");
+    }
+    Serial.println("");
+    Serial.print("Deactivated: ");
+    Serial.print(deactivate1);
+    Serial.print(" ");
+    Serial.println(deactivate2);
   } else {
     set_val_for_all_led(LOW);
   }
@@ -87,7 +147,8 @@ void loop() {
         int p = pins[i];
         int f = field[i];
         int val = analogRead(p);
-        if ((f != activeField) && (val > 10)){
+        val = (int)(val * factor[i]);
+        if ((f != activeField) && (f != deactivate1) && (f != deactivate2) && (val > threshold)){
           if (start_time == 0){
             start_time = millis();
           }
