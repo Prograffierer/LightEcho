@@ -152,6 +152,9 @@ class Root:
             self.send_to_ser(13)
             self.send_to_ser(i)
             self.send_to_ser(int(255*factor))
+        # deactivate
+        self.send_to_ser(14)
+        self.send_to_ser(DEACTIVATE)
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
@@ -163,6 +166,7 @@ class Root:
         self.set_new_scene(WaitForNewGameScene(self))
         self.numfont = pg.font.Font(FONT, 140)
         self.msgfont = pg.font.Font(FONT, 80)
+        pg.mouse.set_visible(False)
         self.steps = 0
         if get_uptime() > UPTIME:
             self.running = False
@@ -242,10 +246,12 @@ class PresentScene(SequenceScene):
         super().__init__(root, sequence)
         if len(self.sequence) > 0:
             new = self.sequence[-1]
-            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN:
+            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN or new == DEACTIVATE:
                 new = random.randint(0, 8)
         else:
-            new = random.randint(0, 8)
+            new = DEACTIVATE
+            while new == DEACTIVATE:
+                new = random.randint(0, 8)
         self.sequence.append(new)
         seq_str = " ".join(map(str, self.sequence))
         logging.info(f"Sequence is {seq_str}")

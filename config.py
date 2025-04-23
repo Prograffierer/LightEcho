@@ -10,3 +10,4 @@ FACTORS = [
     1., 1., 1.,
     1., 1., 1.,
     ]
+DEACTIVATE = 2
