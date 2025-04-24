@@ -33,6 +33,19 @@ class Serial:
         self.reset_input_buffer()
         return bytes((field, 255))
     
+    def read(self):
+        with open(self.fname) as f:
+            content = f.read(1)
+            if content == "":
+                return bytes((255,))
+            try:
+                field = int(content)
+            except ValueError:
+                print(f"Invalid read {content}")
+                return bytes()
+        self.reset_input_buffer()
+        return bytes((field,))
+    
     @property
     def in_waiting(self) -> int:
         with open(self.fname) as f:
@@ -45,3 +58,6 @@ class Serial:
     def write(self, bstr):
         with open(self.fname + "_out", "a") as f:
             f.write(f"{bstr[0]}\n")
+
+    def readline(self):
+        return b"This is a testline\n"

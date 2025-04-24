@@ -28,11 +28,11 @@ else:
     import serial
 
 
-left = 200
-top = 100
-size = 300
+left = 210
+top = 50
+size = 290
 pad = 5
-frame_color = (50, 50, 50)
+frame_color = (255, 255, 255)
 bg_color = "black"
 
 # forbidden combos of fields
@@ -50,6 +50,9 @@ bg_standby = pg.transform.scale(bg_standby, (1920, 1080))
 bg_game = pg.image.load(IM_FOLDER + "BG_Game.png")
 bg_game = pg.transform.scale(bg_game, (1920, 1080))
 
+bg_game_2 = pg.image.load(IM_FOLDER + "BG_Game_2.png")
+bg_game_2 = pg.transform.scale(bg_game_2, (1920, 1080))
+
 
 def color_for_rect(i):
     hsva = (100 / 9 * i, 100, 100, 100)
@@ -58,17 +61,20 @@ def color_for_rect(i):
     return color.r, color.g, color.b
 
 
-def rect_for_idx(i, pad=True):
+def rect_for_idx(i, pad=2):
     if pad:
         return pg.Rect(
-            left + size * (i % 3), top + size * (i // 3), size - pad, size - pad
+            left + size * (i % 3) + pad, top + size * (i // 3) + pad, size - 2*pad, size - 2*pad
         )
     else:
         return pg.Rect(left + size * (i % 3), top + size * (i // 3), size, size)
 
 
-def draw_game_bg(screen: pg.Surface, font: pg.font.Font, cur_score, highscore, draw_field=True):
-    screen.blit(bg_game, (0, 0))
+def draw_game_bg(screen: pg.Surface, font: pg.font.Font, cur_score, highscore, draw_field=True, hint=False):
+    if hint:
+        screen.blit(bg_game_2, (0, 0))
+    else:
+        screen.blit(bg_game, (0, 0))
     if draw_field:
         for i in range(9):
             pg.draw.rect(screen, frame_color, rect_for_idx(i, pad=False), 2)
@@ -107,6 +113,7 @@ def get_uptime():
     except FileNotFoundError:
         if not TESTMODE:
             raise
+        # uptime_seconds = (time() - laptop.global_start_time) * 60 * 4
         uptime_seconds = 0
 
     return uptime_seconds
@@ -132,7 +139,7 @@ class Root:
             print(f"No process with 'python3' but {c2} with 'py' found")
 
         self.day = 0
-        while os.path.exists(FOLDER + f"highscore{self.day:03d}"):
+        while os.path.exists(FOLDER + f"highscore{self.day:03d}.txt"):
             self.day += 1
 
         f_idx = 0
@@ -166,7 +173,8 @@ class Root:
         self.set_new_scene(WaitForNewGameScene(self))
         self.numfont = pg.font.Font(FONT, 140)
         self.msgfont = pg.font.Font(FONT, 80)
-        pg.mouse.set_visible(False)
+        if not TESTMODE:
+            pg.mouse.set_visible(False)
         self.steps = 0
         if get_uptime() > UPTIME:
             self.running = False
@@ -218,6 +226,11 @@ class Root:
     def check_uptime(self):
         if get_uptime() > UPTIME:
             self.running = False
+            logging.info("Controlled shutdown")
+            with open(FOLDER + f"highscore{self.day:03d}.txt", "w") as f:
+                f.write(str(self.daily_highscore))
+            with open(FOLDER + "highscore.txt", "w") as f:
+                f.write("0")
 
 
 class Scene:
@@ -356,7 +369,8 @@ class EchoScene(SequenceScene):
         return field, value
 
     def draw_on_screen(self, screen):
-        draw_game_bg(screen, self.root.numfont, len(self.sequence) - 1, self.root.daily_highscore)
+        seq_len = len(self.sequence)
+        draw_game_bg(screen, self.root.numfont, seq_len - 1, self.root.daily_highscore, hint=seq_len <= 3 and seq_len == len(self.remaining_sequence))
         if self.last_field is not None:
             draw_rect_with_color(screen, self.last_field)
 
@@ -466,7 +480,7 @@ class WaitForNewGameScene(Scene):
         screen.blit(bg_standby, (0, 0))
         text = self.root.numfont.render(str(self.root.daily_highscore), True, "white", bg_color)
         textRect = text.get_rect()
-        textRect.center = (920, 970)
+        textRect.center = (940, 930)
         screen.blit(text, textRect)
 
 
