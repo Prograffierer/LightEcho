@@ -141,6 +141,9 @@ class Root:
         self.day = 0
         while os.path.exists(FOLDER + f"highscore{self.day:03d}.txt"):
             self.day += 1
+        if self.day == 0:
+            global UPTIME
+            UPTIME = (3.5*60 - 5) * 60
 
         f_idx = 0
         while os.path.exists(FOLDER + f"log{f_idx:03d}.txt"):
