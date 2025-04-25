@@ -165,6 +165,9 @@ class Root:
         # deactivate
         self.send_to_ser(14)
         self.send_to_ser(DEACTIVATE)
+        # deactivate
+        self.send_to_ser(14)
+        self.send_to_ser(DEACTIVATE2)
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
@@ -262,7 +265,7 @@ class PresentScene(SequenceScene):
         super().__init__(root, sequence)
         if len(self.sequence) > 0:
             new = self.sequence[-1]
-            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN or new == DEACTIVATE:
+            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN or new == DEACTIVATE or new == DEACTIVATE2:
                 new = random.randint(0, 8)
         else:
             new = DEACTIVATE
