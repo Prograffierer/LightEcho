@@ -698,7 +698,7 @@ class CalibrationScene(Scene):
                     # no send_to_ser required as multiply_factor does this already (updates the factors)
                     if time() - self.start_time >= 120:
                         self.critical_signals += 1
-                        if self.critical_signals > 1:
+                        if self.critical_signals > 2:
                             logging.error(f"Calibration failed, we had {self.critical_signals} signals in the last minute")
                             self.root.set_new_scene(CalibrationScene(self.root, self.coeff * 0.8))
         if time() - self.start_time >= 180:

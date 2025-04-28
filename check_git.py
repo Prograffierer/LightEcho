@@ -31,10 +31,11 @@ try:
         msg["From"] = "lightecho@gmx.de"
         msg["To"] = os.getenv("EMAIL")
         while os.path.exists(FOLDER + f"log{i:03d}.txt"):
-            with open(FOLDER + f"log{i:03d}.txt"):
+            with open(FOLDER + f"log{i:03d}.txt") as f:
                 output += "\n\n\n"
                 output += f.read()
                 print(f"Written log {i}")
+            i += 1
         msg.set_content(output)
     
     with smtplib.SMTP("mail.gmx.net", 587) as server:
