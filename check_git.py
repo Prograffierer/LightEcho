@@ -7,6 +7,8 @@ from config import *
 import os
 from dotenv import load_dotenv
 
+# test
+
 os.chdir("/home/lightecho/LightEcho")
 
 load_dotenv()
