@@ -4,3 +4,4 @@ laptop.py
 config.py
 *.txt
 *.txt_out
+.env

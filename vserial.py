@@ -7,6 +7,9 @@ class Serial:
             with open(self.fname, "x"):
                 pass
         self.already_read = []
+        self.mode = 0
+        self.idx = 0
+        self.factors = [1] * 9
 
     # def _num(self):
     #     with open(self.fname) as f:
@@ -58,6 +61,14 @@ class Serial:
     def write(self, bstr):
         with open(self.fname + "_out", "a") as f:
             f.write(f"{bstr[0]}\n")
+        if self.mode == 0 and bstr[0] == 13:
+            self.mode = 1
+        elif self.mode == 1:
+            self.mode = 2
+            self.idx = bstr[0]
+        elif self.mode == 2:
+            self.factors[self.idx] = bstr[0] / 255
+            self.mode = 0
 
     def readline(self):
-        return b"This is a testline\n"
+        return bytes(str(self.factors), "utf8")
