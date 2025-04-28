@@ -50,8 +50,8 @@ try:
     with open(FOLDER + "msg.txt") as f:
         f.write("Vielen Dank fuer das Internet, es hat alles funktioniert!")
 except subprocess.SubprocessError as e:
-    print(e)
+    raise e
 except Exception as e:
-    print(e)
     with open(FOLDER + "msg.txt", "w") as f:
         f.write(f"Fehler: {e}")
+    raise e
