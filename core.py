@@ -327,6 +327,7 @@ class Root:
             self.daily_highscore = val
         except (FileNotFoundError, ValueError):
             self.daily_highscore = 0
+        self.error_msg = None
         
     @property
     def daily_highscore(self):
@@ -350,11 +351,15 @@ class Root:
                 self.check_uptime()
                 with open(FOLDER + "msg.txt") as f:
                     content = f.read()
+                if len(content) > 3:
+                    self.error_msg = content
+                else:
+                    self.error_msg = None
             self.active_scene.check_for_event()
             self.screen.fill(bg_color)
             self.active_scene.draw_on_screen(self.screen)
-            if len(content) > 3:
-                text = self.msgfont.render(content, True, "white", bg_color)
+            if self.error_msg is not None:
+                text = self.msgfont.render(self.error_msg, True, "white", bg_color)
                 textRect = text.get_rect()
                 textRect.center = (1920//2, 1080//2)
                 self.screen.blit(text, textRect)
