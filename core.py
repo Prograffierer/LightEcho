@@ -40,7 +40,7 @@ bg_color = "black"
 FORBIDDEN = [{0, 8}, {2, 6}]
 
 # maximum uptime till shutdown (in s)
-UPTIME = (4*60 - 5) * 60
+UPTIME = (6*60 - 5) * 60
 
 # time after last interaction till the current game is stopped
 STANDBY_TIMEOUT = 15
