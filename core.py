@@ -697,15 +697,18 @@ class CalibrationScene(Scene):
         if time() - self.start_time >= 5:
             for ser in self.root.ser1, self.root.ser2:
                 if ser.in_waiting > 0:
-                    field, value = ser.read_all()[-2:]
-                    logging.info(f"During calibration: Field {field} with val {value}")
-                    self.root.config.multiply_factor(field, self.coeff)
-                    # no send_to_ser required as multiply_factor does this already (updates the factors)
-                    if time() - self.start_time >= 120:
-                        self.critical_signals += 1
-                        if self.critical_signals > 2:
-                            logging.error(f"Calibration failed, we had {self.critical_signals} signals in the last minute")
-                            self.root.set_new_scene(CalibrationScene(self.root, self.coeff * 0.8))
+                    try:
+                        field, value = ser.read_all()[-2:]
+                        logging.info(f"During calibration: Field {field} with val {value}")
+                        self.root.config.multiply_factor(field, self.coeff)
+                        # no send_to_ser required as multiply_factor does this already (updates the factors)
+                        if time() - self.start_time >= 120:
+                            self.critical_signals += 1
+                            if self.critical_signals > 2:
+                                logging.error(f"Calibration failed, we had {self.critical_signals} signals in the last minute")
+                                self.root.set_new_scene(CalibrationScene(self.root, self.coeff * 0.8))
+                    except ValueError as e:
+                        logging.warning(e)
         if time() - self.start_time >= 180:
             self.root.config.threshold = 5
             self.root.last_calibration_time = time()

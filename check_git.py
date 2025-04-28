@@ -36,6 +36,7 @@ try:
                 output += f.read()
                 print(f"Written log {i}")
             i += 1
+        i -= 1
         msg.set_content(output)
     
         with smtplib.SMTP("mail.gmx.net", 587) as server:
