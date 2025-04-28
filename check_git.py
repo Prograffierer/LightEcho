@@ -49,5 +49,5 @@ try:
 except subprocess.SubprocessError:
     pass
 except Exception as e:
-    with open(FOLDER + "msg.txt") as f:
+    with open(FOLDER + "msg.txt", "w") as f:
         f.write(f"Fehler: {e}")
