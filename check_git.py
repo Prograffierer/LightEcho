@@ -49,8 +49,6 @@ try:
             f.write(str(i))
 
         print("Worked perfectly")
-        # with open(FOLDER + "msg.txt", "w") as f:
-        #     f.write("Vielen Dank fuer das Internet, es hat alles funktioniert!")
     print("No new logs")
 except subprocess.SubprocessError as e:
     raise e
