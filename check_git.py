@@ -38,18 +38,19 @@ try:
             i += 1
         msg.set_content(output)
     
-    with smtplib.SMTP("mail.gmx.net", 587) as server:
-        server.starttls()
-        server.login("lightecho@gmx.de", os.getenv("GMX_PASSWORD"))
-        server.send_message(msg)
-        print("Sent email")
+        with smtplib.SMTP("mail.gmx.net", 587) as server:
+            server.starttls()
+            server.login("lightecho@gmx.de", os.getenv("GMX_PASSWORD"))
+            server.send_message(msg)
+            print("Sent email")
 
-    with open(FOLDER + "last_send_log.txt", "w") as f:
-        f.write(str(i))
+        with open(FOLDER + "last_send_log.txt", "w") as f:
+            f.write(str(i))
 
-    print("Worked perfectly")
-    with open(FOLDER + "msg.txt") as f:
-        f.write("Vielen Dank fuer das Internet, es hat alles funktioniert!")
+        print("Worked perfectly")
+        with open(FOLDER + "msg.txt", "w") as f:
+            f.write("Vielen Dank fuer das Internet, es hat alles funktioniert!")
+    print("No new logs")
 except subprocess.SubprocessError as e:
     raise e
 except Exception as e:
