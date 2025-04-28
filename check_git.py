@@ -34,20 +34,24 @@ try:
             with open(FOLDER + f"log{i:03d}.txt"):
                 output += "\n\n\n"
                 output += f.read()
+                print(f"Written log {i}")
         msg.set_content(output)
     
     with smtplib.SMTP("mail.gmx.net", 587) as server:
         server.starttls()
         server.login("lightecho@gmx.de", os.getenv("GMX_PASSWORD"))
         server.send_message(msg)
+        print("Sent email")
 
     with open(FOLDER + "last_send_log.txt", "w") as f:
         f.write(str(i))
 
+    print("Worked perfectly")
     with open(FOLDER + "msg.txt") as f:
         f.write("Vielen Dank fuer das Internet, es hat alles funktioniert!")
-except subprocess.SubprocessError:
-    pass
+except subprocess.SubprocessError as e:
+    print(e)
 except Exception as e:
+    print(e)
     with open(FOLDER + "msg.txt", "w") as f:
         f.write(f"Fehler: {e}")
