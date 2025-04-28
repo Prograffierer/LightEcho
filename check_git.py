@@ -14,7 +14,7 @@ os.chdir("/home/lightecho/LightEcho")
 load_dotenv()
 
 try:
-    output = subprocess.check_output(["/usr/local/bin/git", "pull"]).decode()
+    output = subprocess.check_output(["/usr/bin/git", "pull"]).decode()
     if not "Already up to date" in output:
         for pc in psutil.process_iter():
             if "python3" in pc.name() and not "git" in pc.name():
