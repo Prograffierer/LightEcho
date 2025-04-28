@@ -639,6 +639,8 @@ class WaitForNewGameScene(Scene):
         logging.debug(self.root.ser2.readline().decode()[:-1])
         logging.debug(self.root.ser2.readline().decode()[:-1])
         logging.debug(self.root.ser2.readline().decode()[:-1])
+        with open(FOLDER + "msg.txt", "w") as f:
+            pass
         self.start_time = time()
         self.blinks = 0
 
