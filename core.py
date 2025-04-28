@@ -671,7 +671,7 @@ class WaitForNewGameScene(Scene):
 
 
 class CalibrationScene(Scene):
-    bg_calibration = pg.image.load("BG_Calibration.png")
+    bg_calibration = pg.image.load(IM_FOLDER + "BG_Calibration.png")
     bg_calibration = pg.transform.scale(bg_calibration, (1920, 1080))
 
     def __init__(self, root, coeff=0.9):
