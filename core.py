@@ -101,11 +101,11 @@ def draw_game_bg(screen: pg.Surface, font: pg.font.Font, cur_score, highscore, d
     screen.blit(text, textRect)
 
 
-def draw_text(screen: pg.Surface, msg: str, font: pg.font.Font):
+def draw_text(screen: pg.Surface, msg: str, font: pg.font.Font, color="white"):
     lines = msg.split("\n")
     y = 300
     for line in lines:
-        text = font.render(line, True, "white", bg_color)
+        text = font.render(line, True, color, bg_color)
         textRect = text.get_rect()
         textRect.centerx = 600
         textRect.top = y
@@ -137,7 +137,7 @@ class ParallelInstanceRunning(RuntimeError):
 
 
 class Config:
-    MIN_FACTOR = 0.3
+    MIN_FACTOR = 0.2
 
     def __init__(self, root: Root):
         self.root = root
@@ -182,7 +182,7 @@ class Config:
         if self.autopilot:
             for i in range(9):
                 if i != DEACTIVATE:
-                    self[i] = 1
+                    self[i] = 0.9
 
     def set_max_vals(self):
         self._max_vals = self._factors.copy()
@@ -191,19 +191,22 @@ class Config:
         diff = abs(correct // 3 - false // 3) + abs(correct % 3 - false % 3)
         if diff <= 1 and self.autopilot:
             logging.info(f"Autopilot: Shifted {correct} up and {false} down")
-            self[correct] = self[correct] * 1.05
-            self[false] = self[false] * 0.95
-            self.rescale()
+            # self[correct] = self[correct] * 1.05
+            # self[false] = self[false] * 0.95
+            if self.autopilot:
+                self._factors[correct] /= 0.92
+                self._factors[false] *= 0.92
+                self.rescale()
     
     def rescale(self):
         if self.autopilot:
             try:
                 mask = (self._max_vals > 0) & (self._factors > 0)
                 self._factors *= np.min(self._max_vals[mask] / self._factors[mask])
-                self._factors[self._factors < self.MIN_FACTOR]
+                self._factors[self._factors < self.MIN_FACTOR] = 0
                 self.store_factors()
                 self.send_config()
-                if np.sum(self._factors == 0) > 3:
+                if np.sum(self._factors == 0) > 5:
                     logging.warning(f"{np.sum(self._factors == 0)} field deactivated - turning Autopilot off")
                     self.autopilot = False
             except AttributeError:
@@ -214,8 +217,8 @@ class Config:
 
     def __setitem__(self, key, factor: float):
         if self.autopilot:
-            # if factor > 1.0:
-            #     factor = 1
+            if factor > 1.0:
+                factor = 1
             if factor < self.MIN_FACTOR:
                 factor = 0
             if key == DEACTIVATE:
@@ -318,9 +321,9 @@ class Root:
         if not TESTMODE:
             pg.mouse.set_visible(False)
         self.steps = 0
-        if get_uptime() > UPTIME:
-            self.running = False
-            return
+        # if get_uptime() > UPTIME:
+        #     self.running = False
+        #     return
         try:
             with open(FOLDER + "highscore.txt") as f:
                 val = int(f.read())
@@ -379,13 +382,14 @@ class Root:
             ser.write(bytes((msg,)))
 
     def check_uptime(self):
-        if get_uptime() > UPTIME:
-            self.running = False
-            logging.info("Controlled shutdown")
-            with open(FOLDER + f"highscore{self.day:03d}.txt", "w") as f:
-                f.write(str(self.daily_highscore))
-            with open(FOLDER + "highscore.txt", "w") as f:
-                f.write("0")
+        pass
+        # if get_uptime() > UPTIME:
+        #     self.running = False
+        #     logging.info("Controlled shutdown")
+        #     with open(FOLDER + f"highscore{self.day:03d}.txt", "w") as f:
+        #         f.write(str(self.daily_highscore))
+        #     with open(FOLDER + "highscore.txt", "w") as f:
+        #         f.write("0")
 
 
 class Scene:
@@ -405,6 +409,34 @@ class SequenceScene(Scene):
         self.sequence = sequence
         if self.sequence is None:
             self.sequence = []
+            new = DEACTIVATE
+            while new in self.root.config.deactivated:
+                new = random.randint(0, 8)
+            self.sequence.append(new)
+            new = self.sequence[-1]
+            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN or new in self.root.config.deactivated or new == self.sequence[0]:
+                new = random.randint(0, 8)
+            self.sequence.append(new)
+
+
+class IntroScene(Scene):
+    wait = 2
+
+    def __init__(self, root):
+        super().__init__(root)
+        self.start_time = time()
+        
+    def check_for_event(self):
+        if time() - self.start_time > 2 * self.wait:
+            self.root.set_new_scene(PresentScene(self.root))
+
+    def draw_on_screen(self, screen):
+        draw_game_bg(screen, self.root.numfont, cur_score=0, highscore=self.root.daily_highscore, draw_field=False, dont_jump=False)
+        if time() - self.start_time <= self.wait:
+            msg = "Warte, bis wir\ndie komplette Abfolge\nangezeigt haben"
+        else:
+            msg = "Laufe sie dann\nauf dem Spielfeld nach"
+        draw_text(screen, msg, self.root.msgfont, color="orange")
 
 
 class PresentScene(SequenceScene):
@@ -414,7 +446,7 @@ class PresentScene(SequenceScene):
         super().__init__(root, sequence)
         if len(self.sequence) > 0:
             new = self.sequence[-1]
-            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN or new in self.root.config.deactivated:
+            while new == self.sequence[-1] or {new, self.sequence[-1]} in FORBIDDEN or new in self.root.config.deactivated or new == self.sequence[0]:
                 new = random.randint(0, 8)
         else:
             new = DEACTIVATE
@@ -445,7 +477,7 @@ class PresentScene(SequenceScene):
 
     def draw_on_screen(self, screen):
         field = self.cur_field()
-        draw_game_bg(screen, self.root.numfont, len(self.sequence) - 1, self.root.daily_highscore, dont_jump=False)
+        draw_game_bg(screen, self.root.numfont, len(self.sequence) - 1 if len(self.sequence) > 3 else 0, self.root.daily_highscore, dont_jump=False)
         draw_rect_with_color(screen, field)
         pg.draw.rect(screen, "darkorange", pg.Rect(left - 20, top - 20, 3*size + 40, 3*size + 40), 10, border_radius=10)
         text = self.hint_font.render("Gut aufpassen...", True, "orange", bg_color)
@@ -502,10 +534,11 @@ class EchoScene(SequenceScene):
                     if not correct == max_idx:
                         self.send_to_ser(10)
                         self.root.set_new_scene(
-                            MistakeScene(self.root, len(self.sequence)-1)
+                            MistakeScene(self.root, len(self.sequence)-1 if len(self.sequence) > 3 else 0)
                         )
-                        self.root.config.unexpected_signal(correct, max_idx)
-                        return
+                        if len(self.sequence) > 4 and len(self.remaining_sequence) > 0:
+                            self.root.config.unexpected_signal(correct, max_idx)
+                            return
                     if len(self.remaining_sequence):
                         self.send_to_ser(self.last_field)
                     else:
@@ -534,17 +567,19 @@ class EchoScene(SequenceScene):
 
     def draw_on_screen(self, screen):
         seq_len = len(self.sequence)
+        if seq_len == 3:
+            seq_len = 1
         stampfen = time() - self.last_event_time > 5
-        draw_game_bg(screen, self.root.numfont, seq_len - 1, self.root.daily_highscore, hint=seq_len == 3 and len(self.remaining_sequence) == 3 and not stampfen, dont_jump=seq_len > 2 and not stampfen, kl_logo=seq_len>2 and not stampfen)
+        draw_game_bg(screen, self.root.numfont, seq_len - 1, self.root.daily_highscore, hint=False, dont_jump=not stampfen, kl_logo=not stampfen)
         if self.last_field is not None:
             draw_rect_with_color(screen, self.last_field)
-        if seq_len == 1:
-            msg = "Betritt das Feld, das gerade angezeigt wurde"
-        elif seq_len == 2:
-            if len(self.remaining_sequence) == 2:
-                msg = "Betritt das erste Feld in der Abfolge"
-            else:
-                msg = "Sehr gut! Jetzt das zweite Feld"
+        # if seq_len == 1:
+        #     msg = "Betritt das Feld, das gerade angezeigt wurde"
+        # elif seq_len == 2:
+        #     if len(self.remaining_sequence) == 2:
+        #         msg = "Betritt das erste Feld in der Abfolge"
+        #     else:
+        #         msg = "Sehr gut! Jetzt das zweite Feld"
         if stampfen:
             msg = "Manchmal ist vorsichtiges Stampfen nötig"
         try:
@@ -554,6 +589,11 @@ class EchoScene(SequenceScene):
             screen.blit(text, textRect)
         except UnboundLocalError:
             pass
+        if len(self.remaining_sequence) == len(self.sequence):
+            text = self.root.msgfont.render("Und jetzt du!", True, "white", bg_color)
+            textRect = text.get_rect()
+            textRect.center = (left + 1.5*size, top + 1.5*size)
+            screen.blit(text, textRect)
 
 
 class MistakeScene(Scene):
@@ -654,9 +694,9 @@ class WaitForNewGameScene(Scene):
         for s in (s1, s2):
             if s.in_waiting > 0:
                 logging.info(f"Started game with {s.read()[0]} and val {s.read()[0]}")
-                self.root.set_new_scene(PresentScene(self.root))
+                self.root.set_new_scene(IntroScene(self.root))
                 return
-        if time() - self.root.last_calibration_time >= 60*60:
+        if time() - self.root.last_calibration_time >= 60*60 and self.root.config.autopilot and not TESTMODE:
             self.root.set_new_scene(CalibrationScene(root))
         if time() - self.start_time >= 2 * self.blinks:
             self.root.send_to_ser(random.randint(0, 8))
@@ -674,18 +714,27 @@ class CalibrationScene(Scene):
     bg_calibration = pg.image.load(IM_FOLDER + "BG_Calibration.png")
     bg_calibration = pg.transform.scale(bg_calibration, (1920, 1080))
 
-    def __init__(self, root, coeff=0.9):
+    TIME = 180
+
+    def __init__(self, root, coeff=0.9, dont_reset=False):
         super().__init__(root)
+        if not self.root.config.autopilot:
+            self.root.set_new_scene(WaitForNewGameScene(root))
+            logging.warning("Attempted starting a calibration when autopilot was off")
+            return
         self.start_time = time()
         self.critical_signals = 0 # number of signals received in the last minute of calibration (should be at most 1)
-        self.root.config.reset_to_full_sensitivity()
+        if not dont_reset:
+            self.root.config.reset_to_full_sensitivity()
+        else:
+            logging.info("No reset to full sensitivity")
         self.coeff = coeff
         self.root.config.threshold = 4
         logging.info(f"Calibration started with coeff {coeff}")
 
     def draw_on_screen(self, screen: pg.Surface):
         screen.blit(self.bg_calibration, (0, 0))
-        rem_time = 180 - (time() - self.start_time)
+        rem_time = self.TIME - (time() - self.start_time)
         mins = int(rem_time // 60)
         secs = int(rem_time % 60)
         text = self.root.numfont.render(f"{mins}:{secs:02d}", True, "white", bg_color)
@@ -702,16 +751,17 @@ class CalibrationScene(Scene):
                         logging.info(f"During calibration: Field {field} with val {value}")
                         self.root.config.multiply_factor(field, self.coeff)
                         # no send_to_ser required as multiply_factor does this already (updates the factors)
-                        if time() - self.start_time >= 120:
+                        if time() - self.start_time >= self.TIME - 60:
                             self.critical_signals += 1
                             if self.critical_signals > 2:
                                 logging.error(f"Calibration failed, we had {self.critical_signals} signals in the last minute")
-                                self.root.set_new_scene(CalibrationScene(self.root, self.coeff * 0.8))
+                                self.root.set_new_scene(CalibrationScene(self.root, self.coeff * 0.8, dont_reset=True))
                     except ValueError as e:
                         logging.warning(e)
-        if time() - self.start_time >= 180:
+        if time() - self.start_time >= self.TIME:
             self.root.config.threshold = 5
             self.root.last_calibration_time = time()
+            self.root.config.set_max_vals()
             self.root.set_new_scene(WaitForNewGameScene(self.root))
 
 
