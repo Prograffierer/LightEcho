@@ -208,9 +208,9 @@ class Config:
                 self._factors[self._factors < self.MIN_FACTOR] = 0
                 self.store_factors()
                 self.send_config()
-                if np.sum(self._factors == 0) > 5:
-                    logging.warning(f"{np.sum(self._factors == 0)} field deactivated - turning Autopilot off")
-                    self.autopilot = False
+                # if np.sum(self._factors == 0) > 5:
+                #     logging.warning(f"{np.sum(self._factors == 0)} field deactivated - turning Autopilot off")
+                #     self.autopilot = False
             except AttributeError:
                 logging.warning("Attempted a rescaling when no max_vals where set")
 
