@@ -429,15 +429,17 @@ class IntroScene(Scene):
         self.start_time = time()
         
     def check_for_event(self):
-        if time() - self.start_time > 2 * self.wait:
+        if time() - self.start_time > 3 * self.wait:
             self.root.set_new_scene(PresentScene(self.root))
 
     def draw_on_screen(self, screen):
         draw_game_bg(screen, self.root.numfont, cur_score=0, highscore=self.root.daily_highscore, draw_field=False, dont_jump=False)
         if time() - self.start_time <= self.wait:
             msg = "Warte, bis wir\ndie komplette Abfolge\nangezeigt haben"
-        else:
+        elif time() - self.start_time <= 2 * self.wait:
             msg = "Laufe sie dann\nauf dem Spielfeld nach"
+        else:
+            msg = "Warte jedes Mal,\nbis das aktuelle\nFeld aufleuchtet"
         draw_text(screen, msg, self.root.msgfont, color="orange")
 
 
