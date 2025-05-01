@@ -142,10 +142,12 @@ class Config:
     def __init__(self, root: Root):
         self.root = root
         self.autopilot = AUTOPILOT
-        try:
-            self._factors = np.loadtxt(FOLDER + "factors.txt")
-        except FileNotFoundError:
-            self._factors = np.ones((9,))
+        # try:
+        #     self._factors = np.loadtxt(FOLDER + "factors.txt")
+        # except FileNotFoundError:
+        #     self._factors = np.ones((9,))
+        self._factors = np.ones((9,), dtype=float)
+        self._factors[DEACTIVATE] = 0
         self._factors[self._factors < self.MIN_FACTOR] = 0
         try:
             self._factors[DEACTIVATE] = 0
