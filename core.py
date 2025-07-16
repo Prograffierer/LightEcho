@@ -480,6 +480,7 @@ class PresentScene(SequenceScene):
         f = self.cur_field()
         if f != self._last_field and f is not None:
             self.root.send_to_ser(f)
+            self.root.ser_in.send(bytes((f,)))
             self._last_field = f
     
     def cur_field(self):
@@ -576,7 +577,8 @@ class EchoScene(SequenceScene):
     def resume(self):
         if len(self.remaining_sequence):
             self.send_to_ser(self.last_field)
-            self.ser_in.send(bytes((self.remaining_sequence[0],)))
+            # self.ser_in.send(bytes((self.remaining_sequence[0],)))
+            self.ser_in.send(bytes((self.last_field,)))
             # print(f"Sent {self.remaining_sequence[-1]}")
         else:
             self.send_to_ser(9)
