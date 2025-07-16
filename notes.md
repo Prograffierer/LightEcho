@@ -28,3 +28,8 @@ Arduino 2 empfängt Piezos 6 bis 8 (A0-A2) und steuert LED-Strips 6 bis 8 (3, 5,
 ## Tagesmanagement
 Da der Raspberry keine echte Zeit hat, müssen wir auf unsere Uptime-Rechnungen vertrauen, um die Tage zu zählen.
 Sobald sich der Raspberry aus Uptime-Gründen kontrolliert ausschaltet, erstellt er eine Datei highscore000.txt usw, jeweils mit dem jeweiligen Tag als Suffix. Dort wird natürlich der Tageshighscore reingeschrieben (ansonsten steht der Highscore immer in highscore.txt). Jedes Skript findet dann durch einen Check der existierenden Dateien den aktuellen Tag.
+
+## Socket communication
+The laptop (i.e. the script directly communicating with the webcams) is the host, hosting on port 8888.
+
+As soon as the cams recognise a step on a field, it sends one byte containing this field's idx. If a mistake is corrected, the number 9 is sent.

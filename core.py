@@ -9,6 +9,7 @@ import psutil
 import os
 import traceback
 import numpy as np
+from serial_socket import SerialSocket
 
 try:
     import laptop
@@ -164,6 +165,9 @@ class Config:
         self.set_max_vals()
 
     def send_config(self):
+        if not self.autopilot:
+            logging.warning("Attempted a send_config() when autopilot was off")
+            return
         for i, factor in enumerate(self._factors):
             self.root.send_to_ser(13)
             self.root.send_to_ser(i)
@@ -305,8 +309,15 @@ class Root:
         logging.info(f"--- Day {self.day} ---")
         self.ser1 = serial.Serial(SER1, timeout=2)
         self.ser2 = serial.Serial(SER2, timeout=2)
+        self.ser_in = SerialSocket() # TODO
         sleep(2)
         self.config = Config(self)
+        self.config.autopilot = False
+        for s in [self.ser1, self.ser2]:
+            for idx in range(9):
+                s.write(bytes((13,)))
+                s.write(bytes((idx,)))
+                s.write(bytes((0,)))
         pg.init()
         if not TESTMODE:
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
@@ -495,9 +506,11 @@ class EchoScene(SequenceScene):
         super().__init__(root, sequence)
         self.ser1 = self.root.ser1
         self.ser2 = self.root.ser2
+        self.ser_in = self.root.ser_in
         self.send_to_ser = self.root.send_to_ser
         self.ser1.read_all()
         self.ser2.read_all()
+        self.ser_in.reset()
         self.send_to_ser(11)
         self.last_field: int = None
         self.remaining_sequence = self.sequence.copy()
@@ -505,6 +518,7 @@ class EchoScene(SequenceScene):
         self.error_count = 0
         self.last_event_time = time()
         self.hint_font = pg.font.Font(FONT, 70)
+        self.ser_in.send(bytes((self.remaining_sequence[0],)))
 
     def check_for_event(self):
         try:
@@ -516,38 +530,36 @@ class EchoScene(SequenceScene):
                     logging.info(f"New highscore {self.root.daily_highscore}")
                 self.root.set_new_scene(WaitForNewGameScene(self.root))
                 return
-            if self.ser1.in_waiting > 0 or self.ser2.in_waiting > 0:
+            if self.ser_in.is_available:
                 pg.time.delay(100)
-                s1 = s2 = "00000"
-                s1 = self.ser1.read_all()
-                s2 = self.ser2.read_all()
-                s = max(s1, s2, key=lambda s: self.decode(s)[1])
-                max_idx = self.decode(s)[0]
-                max_val = self.decode(s)[1]
-                assert max_val > 0
+                # s1 = s2 = "00000"
+                # s1 = self.ser1.read_all()
+                # s2 = self.ser2.read_all()
+                # s = max(s1, s2, key=lambda s: self.decode(s)[1])
+                max_idx = self.ser_in.get_field()
+                # max_idx = self.decode(s)[0]
+                # max_val = self.decode(s)[1]
+                # assert max_val > 0
                 self.last_event_time = time()
                 if self.last_field == max_idx:
                     logging.warning(
-                        f"Field {max_idx} was reported twice, the second time with value {max_val}"
+                        f"Field {max_idx} was reported twice"
                     )
                     self.send_to_ser(self.last_field)
                 else:
                     self.last_field = max_idx
-                    logging.info(f"Answer was {max_idx} with value {max_val}")
+                    logging.info(f"Answer was {max_idx}")
                     correct = self.remaining_sequence.pop(0)
                     if not correct == max_idx:
+                        self.last_field = correct
                         self.send_to_ser(10)
                         self.root.set_new_scene(
-                            MistakeScene(self.root, len(self.sequence)-1 if len(self.sequence) > 3 else 0)
+                            MistakeScene(self.root, len(self.sequence)-1 if len(self.sequence) > 3 else 0, self)
                         )
                         if len(self.sequence) > 4 and len(self.remaining_sequence) > 0:
                             self.root.config.unexpected_signal(correct, max_idx)
-                            return
-                    if len(self.remaining_sequence):
-                        self.send_to_ser(self.last_field)
-                    else:
-                        self.send_to_ser(9)
-                        self.root.set_new_scene(SuccessScene(root, self.sequence))
+                        return
+                    self.resume()
         except Exception as e:
             # here, everything can happen, from errors in the serial communication to parsing errors
             logging.error(e)
@@ -560,6 +572,15 @@ class EchoScene(SequenceScene):
                 self.last_error = str(e)
                 self.error_count = 1
             self.send_to_ser(11)
+
+    def resume(self):
+        if len(self.remaining_sequence):
+            self.send_to_ser(self.last_field)
+            self.ser_in.send(bytes((self.remaining_sequence[0],)))
+            # print(f"Sent {self.remaining_sequence[-1]}")
+        else:
+            self.send_to_ser(9)
+            self.root.set_new_scene(SuccessScene(root, self.sequence))
 
     @staticmethod
     def decode(msg: bytes):
@@ -603,18 +624,19 @@ class EchoScene(SequenceScene):
 class MistakeScene(Scene):
     stay_on_screen = 5
 
-    def __init__(self, root: Root, score: int):
+    def __init__(self, root: Root, score: int, last_echo_scene: EchoScene):
         self.start_time = time()
         self.root = root
+        self.last_echo_scene = last_echo_scene
         self.score = score
         logging.info(f"Mistake. Score was {self.score}")
-        if score <= 3:
+        if score <= 4:
             msgs = [
                 "Schade, das war\ndas falsche Feld :(",
                 "Leider falsch...",
                 "Nicht ganz richtig..."
             ]
-        elif score <= 6:
+        else:
             msgs = [
                 f"Nach {score} richtigen Feldern\nein kleiner Fehler...\nSehr stark!",
                 f"{score} Felder - super!",
@@ -629,6 +651,9 @@ class MistakeScene(Scene):
     def check_for_event(self):
         if time() - self.start_time > self.stay_on_screen:
             self.root.set_new_scene(WaitForNewGameScene(self.root))
+        if self.root.ser_in.was_right():
+            self.root.set_new_scene(self.last_echo_scene)
+            self.last_echo_scene.resume()
 
     def draw_on_screen(self, screen: pg.Surface):
         draw_game_bg(screen, self.root.numfont, self.score, self.root.daily_highscore, draw_field=False)
@@ -694,14 +719,16 @@ class WaitForNewGameScene(Scene):
         self.blinks = 0
 
     def check_for_event(self):
-        s1, s2 = self.root.ser1, self.root.ser2
-        for s in (s1, s2):
-            if s.in_waiting > 0:
-                logging.info(f"Started game with {s.read()[0]} and val {s.read()[0]}")
-                self.root.set_new_scene(IntroScene(self.root))
-                return
-        if time() - self.root.last_calibration_time >= 60*60 and self.root.config.autopilot and not TESTMODE:
-            self.root.set_new_scene(CalibrationScene(root))
+        # s1, s2 = self.root.ser1, self.root.ser2
+        # for s in (s1, s2):
+        s = self.root.ser_in
+        if s.is_available > 0:
+            logging.info("Game started")
+            # logging.info(f"Started game with {s.read()[0]} and val {s.read()[0]}")
+            self.root.set_new_scene(IntroScene(self.root))
+            return
+        # if time() - self.root.last_calibration_time >= 60*60 and self.root.config.autopilot and not TESTMODE:
+        #     self.root.set_new_scene(CalibrationScene(root))
         if time() - self.start_time >= 2 * self.blinks:
             self.root.send_to_ser(random.randint(0, 8))
             self.blinks += 1

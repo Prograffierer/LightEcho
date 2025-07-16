@@ -5,3 +5,4 @@ config.py
 *.txt
 *.txt_out
 .env
+test_*.py

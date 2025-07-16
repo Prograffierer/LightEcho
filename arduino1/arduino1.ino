@@ -135,45 +135,45 @@ void execute_cmd(int cmd) {
 }
 
 void loop() {
-  int i;
-  unsigned int max_f = 0;
-  unsigned int max_val = 0;
-  unsigned long start_time = 0;
-  int foundSth = 0;
-  digitalWrite(13, HIGH);
-  while (foundSth == 0){
-    for (int j = 0; (j < 20) && (foundSth == 0); j++){
-      for (i = 0; i < s; i++){
-        int p = pins[i];
-        int f = field[i];
-        int val = analogRead(p);
-        val = (int)(val * factor[i]);
-        if ((f != activeField) && (f != deactivate1) && (f != deactivate2) && (val > threshold)){
-          if (start_time == 0){
-            start_time = millis();
-          }
-          if (val > max_val){
-            max_val = val;
-            max_f = f;
-          }
-        }
-      }
-      if ((start_time > 0) && (millis() - start_time > 200)){
-        digitalWrite(13, LOW);
-        unsigned int code = max_f << 12 + max_val << 2;
-        while (Serial.available() > 0){Serial.read();}
-        Serial.write(max_f);
-        Serial.write(max_val / 4);
-        unsigned long timeout_start = millis();
-        while ((Serial.available() == 0) && (millis() - timeout_start < 2000)){}
-        activeField = Serial.read();
-        execute_cmd(activeField);
-        foundSth = 1;
-      }
-    }
+  // int i;
+  // unsigned int max_f = 0;
+  // unsigned int max_val = 0;
+  // unsigned long start_time = 0;
+  // int foundSth = 0;
+  // digitalWrite(13, HIGH);
+  // while (foundSth == 0){
+    // for (int j = 0; (j < 20) && (foundSth == 0); j++){
+    //   for (i = 0; i < s; i++){
+    //     int p = pins[i];
+    //     int f = field[i];
+    //     int val = analogRead(p);
+    //     val = (int)(val * factor[i]);
+    //     if ((f != activeField) && (f != deactivate1) && (f != deactivate2) && (val > threshold)){
+    //       if (start_time == 0){
+    //         start_time = millis();
+    //       }
+    //       if (val > max_val){
+    //         max_val = val;
+    //         max_f = f;
+    //       }
+    //     }
+    //   }
+    //   if ((start_time > 0) && (millis() - start_time > 200)){
+    //     digitalWrite(13, LOW);
+    //     unsigned int code = max_f << 12 + max_val << 2;
+    //     while (Serial.available() > 0){Serial.read();}
+    //     Serial.write(max_f);
+    //     Serial.write(max_val / 4);
+    //     unsigned long timeout_start = millis();
+    //     while ((Serial.available() == 0) && (millis() - timeout_start < 2000)){}
+    //     activeField = Serial.read();
+    //     execute_cmd(activeField);
+    //     foundSth = 1;
+    //   }
+    // }
     if (Serial.available() > 0){
       activeField = Serial.read();
       execute_cmd(activeField);
     }
-  }
+  // }
 }
