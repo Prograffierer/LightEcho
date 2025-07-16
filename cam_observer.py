@@ -16,19 +16,25 @@ kb.add_hotkey("space", c.send, args=(bytes((9,)),))
 
 pg.mixer.init()
 
-pop_sound = pg.mixer.Sound("pop2.wav")
+field_sounds = [pg.mixer.Sound(f"sounds/{i}.wav") for i in range(9)]
+win_sound = pg.mixer.Sound("sounds/win.wav")
+lost_sound = pg.mixer.Sound("sounds/lost.wav")
 
 try:
     while True:
         msg = c.recv(1)
         if len(msg) == 0:
             break
-        if msg[0] < 10:
+        if msg[0] < 9:
             msg = msg[0]
-            pop_sound.play()
+            field_sounds[msg].play()
+        elif msg[0] == 9:
+            win_sound.play()
+        elif msg[0] == 10:
+            lost_sound.play()
         else:
             msg = msg.decode()
-        print("Correct:", msg)
+        # print("Correct:", msg)
     print("Host closed connection")
 finally:
     print("Ended")

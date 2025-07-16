@@ -519,7 +519,7 @@ class EchoScene(SequenceScene):
         self.error_count = 0
         self.last_event_time = time()
         self.hint_font = pg.font.Font(FONT, 70)
-        self.ser_in.send(bytes((self.remaining_sequence[0],)))
+        # self.ser_in.send(bytes((self.remaining_sequence[0],)))
 
     def check_for_event(self):
         try:
