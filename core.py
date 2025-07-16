@@ -650,6 +650,8 @@ class MistakeScene(Scene):
             msgs = ["Du hast den\nHighscore gebrochen!!!\nHerzlichen Glückwunsch!"]
         self.msg = random.choice(msgs)
 
+        self.root.ser_in.send(bytes((10,)))
+
     def check_for_event(self):
         if time() - self.start_time > self.stay_on_screen:
             self.root.set_new_scene(WaitForNewGameScene(self.root))
@@ -688,6 +690,7 @@ class SuccessScene(Scene):
                 "Immer noch alles richtig!",
             ])
         self.msg = random.choice(msgs)
+        self.root.ser_in.send(bytes((9,)))
 
     def check_for_event(self):
         if time() - self.start_time > self.stay_on_screen:
