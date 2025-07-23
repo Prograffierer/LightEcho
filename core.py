@@ -519,9 +519,15 @@ class EchoScene(SequenceScene):
         self.error_count = 0
         self.last_event_time = time()
         self.hint_font = pg.font.Font(FONT, 70)
+        self.time_at_finish = None
         # self.ser_in.send(bytes((self.remaining_sequence[0],)))
 
     def check_for_event(self):
+        if self.time_at_finish:
+            if time() - self.time_at_finish > 1:
+                self.send_to_ser(9)
+                self.root.set_new_scene(SuccessScene(root, self.sequence))
+            return
         try:
             if time() - self.last_event_time > STANDBY_TIMEOUT:
                 logging.info("Standby")
@@ -575,14 +581,14 @@ class EchoScene(SequenceScene):
             self.send_to_ser(11)
 
     def resume(self):
-        if len(self.remaining_sequence):
-            self.send_to_ser(self.last_field)
-            # self.ser_in.send(bytes((self.remaining_sequence[0],)))
-            self.ser_in.send(bytes((self.last_field,)))
-            # print(f"Sent {self.remaining_sequence[-1]}")
-        else:
-            self.send_to_ser(9)
-            self.root.set_new_scene(SuccessScene(root, self.sequence))
+        # if len(self.remaining_sequence):
+        self.send_to_ser(self.last_field)
+        # self.ser_in.send(bytes((self.remaining_sequence[0],)))
+        self.ser_in.send(bytes((self.last_field,)))
+        # print(f"Sent {self.remaining_sequence[-1]}")
+        if not self.remaining_sequence:
+            assert self.time_at_finish is None
+            self.time_at_finish = time()
 
     @staticmethod
     def decode(msg: bytes):
@@ -596,7 +602,8 @@ class EchoScene(SequenceScene):
         seq_len = len(self.sequence)
         if seq_len == 3:
             seq_len = 1
-        stampfen = time() - self.last_event_time > 5
+        # stampfen = time() - self.last_event_time > 5
+        stampfen = False
         draw_game_bg(screen, self.root.numfont, seq_len - 1, self.root.daily_highscore, hint=False, dont_jump=not stampfen, kl_logo=not stampfen)
         if self.last_field is not None:
             draw_rect_with_color(screen, self.last_field)
@@ -709,6 +716,7 @@ class WaitForNewGameScene(Scene):
         self.root.ser1.reset_input_buffer()
         self.root.ser1.reset_input_buffer()
         self.root.send_to_ser(16)
+        self.root.ser_in.reset()
         logging.debug("Config check")
         logging.debug("From ser1:")
         logging.debug(self.root.ser1.readline().decode()[:-1])

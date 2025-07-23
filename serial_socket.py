@@ -12,6 +12,7 @@ class SerialSocket(socket.socket):
     def reset(self):
         self.update()
         self.last_field = None
+        # self.send(bytes((37,)))
 
     def update(self):
         try:

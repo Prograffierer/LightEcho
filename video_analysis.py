@@ -1,3 +1,4 @@
+from random import random
 from socket import timeout
 from time import sleep
 import cv2 as cv
@@ -6,6 +7,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue, Event
 from threading import Event as TEvent
 import json
+from collections import deque
 
 # img = cv.imread("test_img.png")
 
@@ -59,14 +61,21 @@ class CamThread(Process):
 
         self.percentage_light = percentage_light
 
-    def action(self):
-        return np.sum((self.percentage_light - self.last_perc_light)**2)
+        self.action = np.sum((self.percentage_light - self.last_perc_light)**2)
+        
+        self.history.append(self.action <= 0.001)
+        self.calm_history = True
+        for a in self.history:
+            self.calm_history *= a
+
+    # def action(self):
+    #     return np.sum((self.percentage_light - self.last_perc_light)**2)
 
     # def too_much_action(self):
     #     return self.action() >= 0.2
     
     def possible_fields(self):
-        return self.percentage_light <= 0.5 * (self.action() <= 0.2)
+        return (self.percentage_light <= 0.9) * (self.calm_history)
     
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv.EVENT_LBUTTONDOWN:
@@ -90,6 +99,9 @@ class CamThread(Process):
         self.config_mode = None
         self.cap = cv.VideoCapture(self.idx)
         self.percentage_light = np.zeros((9,))
+        self.history_frames = 4
+        self.history = deque((True,)*self.history_frames, self.history_frames)
+        self.calm_history = False
         cv.namedWindow(f"Raw img {self.idx}")
         cv.setMouseCallback(f"Raw img {self.idx}", self.mouse_callback)
         self.load_settings()
@@ -109,7 +121,7 @@ class CamThread(Process):
                 cv.imshow(f"Raw img {self.idx}", img)
                 self.process_img()
                 cv.imshow(f"Thresh {self.idx}", self.thresh)
-                self.queue.put((self.percentage_light, self.possible_fields(), self.action()), timeout=2)
+                self.queue.put((self.percentage_light, self.possible_fields(), self.action), timeout=2)
                 key = cv.waitKey(50)
                 if key == 27:
                     self.stop_event.set()
@@ -123,86 +135,110 @@ class CamThread(Process):
             self.cap.release()
             print(f"Process {self.idx} closed")
 
-def darkest_field(*queues):
-    # perc_light1 = process_img(img1, intervals1, 1)
-    # perc_light2 = process_img(img2, intervals2, 2)
 
-    # ax1.clear()
-    # ax2.clear()
-    # ax1.bar(np.arange(9), perc_light1, color=[])
-    # ax2.bar(np.arange(9), perc_light2)
-    perc_light = []
-    possible = []
-    for ax, queue in zip((ax1, ax2), queues):
-        while queue.full():
-            queue.get()
-            sleep(0.01)
-        pl, pssbl, action = queue.get(timeout=5)
-        perc_light.append(pl)
-        possible.append(pssbl)
-        ax.clear()
-        ax.bar(np.arange(9), pl, color=["orange" if p else "blue" for p in pssbl])
+class Observer:
+    def __init__(self):
+        plt.ion()
+        fig, (self.ax1, self.ax2) = plt.subplots(2, sharex=True)
+        self.ax1.set_ylim(0, 1)
+        self.ax2.set_ylim(0, 1)
+        self.ax1.set_xlim(-1, 9)
+        self.ax2.set_xlim(-1, 9)
+        self.ax1.autoscale(False)
+        self.ax2.autoscale(False)
+        # cap1 = cv.VideoCapture(0)
+        # cap2 = cap1
 
-    overall_intensity = perc_light[0] + perc_light[1]
-    overall_possible = possible[0] * possible[1]
+        # with np.load("settings/intervals.npz") as data:
+        #     intervals1 = data["interv1"]
+        #     intervals2 = data["interv2"]
+        self.stop_event = Event()
 
-    if not np.any(overall_possible):
-        return None
+        self.q0 = Queue(maxsize=2)
+        self.p0 = CamThread(0, self.q0, self.stop_event)
+
+        self.q1 = Queue(maxsize=2)
+        self.p1 = CamThread(1, self.q1, self.stop_event)
+
+        self.enabled = True
+
+    def darkest_field(self):
+        # perc_light1 = process_img(img1, intervals1, 1)
+        # perc_light2 = process_img(img2, intervals2, 2)
+
+        # ax1.clear()
+        # ax2.clear()
+        # ax1.bar(np.arange(9), perc_light1, color=[])
+        # ax2.bar(np.arange(9), perc_light2)
+        perc_light = []
+        possible = []
+        for ax, queue in zip((self.ax1, self.ax2), (self.q1, self.q1)): # TODO
+            while queue.full():
+                queue.get()
+                sleep(0.01)
+            pl, pssbl, action = queue.get(timeout=5)
+            if random() < 0.1:
+                print(action)
+            perc_light.append(pl)
+            possible.append(pssbl)
+            ax.clear()
+            ax.bar(np.arange(9), pl, color=["orange" if p else "blue" for p in pssbl])
+
+        overall_intensity = perc_light[0] + perc_light[1]
+        overall_possible = possible[0] * possible[1]
+
+        if not self.enabled:
+            return "disabled"
+        if not np.any(overall_possible):
+            return "no fields"
+        if np.sum(overall_possible) > 2:
+            return "too much"
+        
+        # print("Sth possible")
+        overall_intensity[~overall_possible] = 2
+
+        # if np.sum(overall_intensity <= 1.3) > 1:
+        #     return None
+
+        idx = np.argmin(overall_intensity)
+
+        # if perc_light1[idx] <= 0.6 and perc_light2[idx] <= 0.6:
+        #     return idx
+
+        return idx
     
-    overall_intensity[~overall_possible] = 2
+    def toggle(self):
+        self.enabled = not self.enabled
+    
+    def reset(self):
+        self.last_df = None
+        self.last_sent_df = None
 
-    # if np.sum(overall_intensity <= 1.3) > 1:
-    #     return None
+    def observe(self, callback=lambda *_: None):
+        # self.p0.start() # TODO
+        self.p1.start()
 
-    idx = np.argmin(overall_intensity)
-
-    # if perc_light1[idx] <= 0.6 and perc_light2[idx] <= 0.6:
-    #     return idx
-
-    return idx
-
-def observe(callback=print):
-    # cap1 = cv.VideoCapture(0)
-    # cap2 = cap1
-
-    # with np.load("settings/intervals.npz") as data:
-    #     intervals1 = data["interv1"]
-    #     intervals2 = data["interv2"]
-    stop_event = Event()
-
-    q0 = Queue(maxsize=2)
-    p0 = CamThread(0, q0, stop_event)
-    p0.start()
-
-    q1 = Queue(maxsize=2)
-    p1 = CamThread(1, q1, stop_event)
-    p1.start()
-
-    last_df = 0
-    last_sent_df = 0
-    try:
-        while not stop_event.is_set():
-            df = darkest_field(q0, q1)
-            if last_df == df and last_sent_df != df:
-                last_sent_df = df
+        last_df = 0
+        self.last_sent_df = None
+        try:
+            while not self.stop_event.is_set():
+                df = self.darkest_field()
+                self.ax1.set_title(f"{df} ({self.last_sent_df})")
+                if not isinstance(df, str) and self.last_sent_df != df:
+                    self.last_sent_df = df
+                    print("Sending sth")
+                else:
+                    df = None
                 callback(df)
-            last_df = df
-            plt.pause(0.05)
-    finally:
-        stop_event.set()
-        p0.join()
-        p1.join()
-        print("Finished")
+                last_df = df
+                plt.pause(0.05)
+        finally:
+            self.stop_event.set()
+            # self.p0.join() # TODO
+            self.p1.join()
+            print("Finished")
 
 if __name__ == "__main__":
-    plt.ion()
-    fig, (ax1, ax2) = plt.subplots(2, sharex=True)
-    ax1.set_ylim(0, 1)
-    ax2.set_ylim(0, 1)
-    ax1.set_xlim(-1, 9)
-    ax2.set_xlim(-1, 9)
-    ax1.autoscale(False)
-    ax2.autoscale(False)
 
     # intervals = np.array([
     #     [i*71, (i+1)*71] for i in range(9)
@@ -225,4 +261,5 @@ if __name__ == "__main__":
 
     # plt.show()
 
-    observe()
+    obs = Observer()
+    obs.observe()
