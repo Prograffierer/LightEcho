@@ -25,6 +25,8 @@ class Game:
         self.bubble = pg.transform.scale(self.bubble, (2*self.radius, 2*self.radius))
         self.pop_sound = pg.mixer.Sound("pop2.wav")
         self.min_ball_count = 0
+        self.last_ball_delete_center = np.array([0, 0])
+        self.T = np.identity(3)
 
     def draw(self):
         for i in range(len(self.centers)):
@@ -39,6 +41,7 @@ class Game:
         img[*np.astype(self.centers.T, int)] = 255
         img[[0, -1]] = 255
         img[:, [0, -1]] = 255
+        img[*np.astype(self.last_ball_delete_center, int)] = 255
         img = cv.distanceTransform(~img, cv.DIST_L2, cv.DIST_MASK_PRECISE)
         # cv.imshow("dist", img)
         max_dist = np.max(img)
@@ -63,9 +66,17 @@ class Game:
         delete = dists <= self.radius
         self.delete_balls(delete)
 
+    def process_lidar_data(self, points: np.array):
+        """points is a (n, 2) array of points
+        representing cartesian coordinates in real world.
+        They don't have to be filtered for points inside the window.
+        """
+        
+
     def delete_balls(self, delete, pop=True):
         """delete is a numpy array of shape (N,) and dtype bool"""
         if np.any(delete):
+            self.last_ball_delete_center = self.centers[np.nonzero(delete)[0][0]]
             self.centers = np.delete(self.centers, delete, axis=0)
             self.vel = np.delete(self.vel, delete, axis=0)
             self.last_overlap = np.delete(self.last_overlap, delete, axis=0)
@@ -144,7 +155,7 @@ class Game:
             # content = ""
             self.screen.fill("white")
             self.check_for_left_balls()
-            if self.add_counter * 300 < pg.time.get_ticks() or True:
+            if self.add_counter * 300 < pg.time.get_ticks():
                 self.add_ball()
                 self.add_counter += 1
             self.step(dt)

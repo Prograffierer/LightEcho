@@ -381,7 +381,7 @@ class Root:
                 self.screen.blit(text, textRect)
             pg.display.flip()
             self.steps += 1
-            sleep(1 / 60)
+            sleep(1 / 100)
         pg.quit()
 
     def set_new_scene(self, scene: Scene):

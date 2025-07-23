@@ -6,3 +6,7 @@ config.py
 *.txt_out
 .env
 test_*.py
+test_*.ipynb
+host_for_tests.py
+lidar_measurement.py
+sounds/

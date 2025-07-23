@@ -18,7 +18,7 @@ pg.mixer.init()
 
 field_sounds = [pg.mixer.Sound(f"sounds/{i}.wav") for i in range(9)]
 win_sound = pg.mixer.Sound("sounds/win.wav")
-lost_sound = pg.mixer.Sound("sounds/lost.wav")
+lost_sound = pg.mixer.Sound("sounds/lost.mp3")
 
 try:
     while True:
