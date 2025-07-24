@@ -48,8 +48,8 @@ if __name__ == "__main__":
 
     pg.mixer.init()
 
-    field_sounds = [pg.mixer.Sound(f"sounds/{i}.wav") for i in range(9)]
-    win_sound = pg.mixer.Sound("sounds/win.wav")
+    field_sounds = [pg.mixer.Sound(f"sounds/{i}.mp3") for i in range(9)]
+    win_sound = pg.mixer.Sound("sounds/win.mp3")
     lost_sound = pg.mixer.Sound("sounds/lost.mp3")
 
 

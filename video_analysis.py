@@ -172,7 +172,7 @@ class Observer:
         # ax2.bar(np.arange(9), perc_light2)
         perc_light = []
         possible = []
-        for ax, queue in zip((self.ax1, self.ax2), (self.q1, self.q1)): # TODO
+        for ax, queue in zip((self.ax1, self.ax2), (self.q0, self.q1)): # TODO
             while queue.full():
                 queue.get()
                 sleep(0.01)
@@ -215,7 +215,7 @@ class Observer:
         self.last_sent_df = None
 
     def observe(self, callback=lambda *_: None):
-        # self.p0.start() # TODO
+        self.p0.start() # TODO
         self.p1.start()
 
         last_df = 0
@@ -234,7 +234,7 @@ class Observer:
                 plt.pause(0.05)
         finally:
             self.stop_event.set()
-            # self.p0.join() # TODO
+            self.p0.join() # TODO
             self.p1.join()
             print("Finished")
 
