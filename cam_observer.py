@@ -45,6 +45,8 @@ if __name__ == "__main__":
         kb.add_hotkey(f"{(7-3*(i // 3)+(i % 3))}", c.send, args=(bytes((i,)),))
     kb.add_hotkey("space", c.send, args=(bytes((9,)),))
     kb.add_hotkey("t", observer.toggle)
+    kb.add_hotkey("alt+s", observer.save_settings)
+    kb.add_hotkey("alt+l", observer.load_settings)
 
     pg.mixer.init()
 

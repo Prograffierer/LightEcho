@@ -1,6 +1,7 @@
+from math import prod
 from random import random
 from socket import timeout
-from time import sleep
+from time import sleep, time
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,18 +37,18 @@ class CamThread(Process):
     def process_img(self):
         """intervals is a (9, 2) array:
         [[start_field0, end_field0], [...], ...] (start / end has to be in the right order)"""
-        # img = cv.cvtColor(self.img, cv.COLOR_BGR2GRAY)
-        img = self.img[..., 0].copy()
+        img = cv.cvtColor(self.img, cv.COLOR_BGR2GRAY)
+        # img = self.img[..., 0].copy()
 
         intervals = self.settings["intervals"]
 
-        _, thresh = cv.threshold(img, 254, 255, cv.THRESH_BINARY)
+        _, thresh = cv.threshold(img, self.settings["thresh"], 255, cv.THRESH_BINARY)
         # cv.imshow(f"thresh {self.idx}", thresh)
 
         thresh[:self.settings["top"]] = 0
         thresh[self.settings["bottom"]:] = 0
 
-        kernel = np.ones((10, 15))
+        kernel = np.ones(self.settings["close_size"])
         thresh = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
         self.thresh = thresh
 
@@ -63,7 +64,7 @@ class CamThread(Process):
 
         self.action = np.sum((self.percentage_light - self.last_perc_light)**2)
         
-        self.history.append(self.action <= 0.001)
+        self.history.append(self.action <= 0.01)
         self.calm_history = True
         for a in self.history:
             self.calm_history *= a
@@ -75,7 +76,7 @@ class CamThread(Process):
     #     return self.action() >= 0.2
     
     def possible_fields(self):
-        return (self.percentage_light <= 0.9) * (self.calm_history)
+        return (self.percentage_light <= self.settings["upper_limit"])
     
     def mouse_callback(self, event, x, y, flags, param):
         if event == cv.EVENT_LBUTTONDOWN:
@@ -130,6 +131,25 @@ class CamThread(Process):
                         self.config_mode = i
                 if key == ord("m"):
                     self.config_mode = -1
+                if key == ord("l"):
+                    self.load_settings()
+                    print("Loaded")
+                if key == ord("s"):
+                    self.save_settings()
+                if key == ord("C"):
+                    intv = self.settings["intervals"]
+                    for i in range(3):
+                        val = intv[i]
+                        intv[3+i] = val
+                        intv[6+i] = val
+                    self.save_settings()
+                if key == ord("R"):
+                    intv = self.settings["intervals"]
+                    for i in range(3):
+                        val = intv[3*i]
+                        intv[1+3*i] = val
+                        intv[2+3*i] = val
+                    self.save_settings()
         finally:
             self.stop_event.set()
             self.cap.release()
@@ -155,12 +175,31 @@ class Observer:
         self.stop_event = Event()
 
         self.q0 = Queue(maxsize=2)
-        self.p0 = CamThread(0, self.q0, self.stop_event)
+        self.p0 = CamThread(1, self.q0, self.stop_event)
 
         self.q1 = Queue(maxsize=2)
-        self.p1 = CamThread(1, self.q1, self.stop_event)
+        self.p1 = CamThread(2, self.q1, self.stop_event)
 
         self.enabled = True
+
+        self.setting_fname = "settings/obs_settings.json"
+        self.load_settings()
+
+        self.history_times = []
+        self.history_fields = []
+
+    def load_settings(self):
+        print("Obs load")
+        with open(self.setting_fname) as f:
+            self.settings = json.load(f)
+        # self.settings["intervals"] = np.array(self.settings["intervals"])
+
+    def save_settings(self):
+        print("Obs save")
+        # stngs = 
+        # self.settings["intervals"] = np.array(self.settings["intervals"])
+        with open(self.setting_fname, "w") as f:
+            json.dump(self.settings, f)
 
     def darkest_field(self):
         # perc_light1 = process_img(img1, intervals1, 1)
@@ -176,7 +215,7 @@ class Observer:
             while queue.full():
                 queue.get()
                 sleep(0.01)
-            pl, pssbl, action = queue.get(timeout=5)
+            pl, pssbl, action = queue.get(timeout=10)
             if random() < 0.1:
                 print(action)
             perc_light.append(pl)
@@ -191,8 +230,12 @@ class Observer:
             return "disabled"
         if not np.any(overall_possible):
             return "no fields"
-        if np.sum(overall_possible) > 2:
+        if np.sum(overall_possible) >= self.settings["too_much"]:
             return "too much"
+        
+        while self.history_fields and time() - self.history_times[0] >= self.settings["stabilise_time"]:
+            self.history_times.pop(0)
+            self.history_fields.pop(0)
         
         # print("Sth possible")
         overall_intensity[~overall_possible] = 2
@@ -201,6 +244,13 @@ class Observer:
         #     return None
 
         idx = np.argmin(overall_intensity)
+
+        self.history_fields.append(idx)
+        self.history_times.append(time())
+
+        stable = np.all([el == idx for el in self.history_fields])
+        if not stable:
+            return "unstable"        
 
         # if perc_light1[idx] <= 0.6 and perc_light2[idx] <= 0.6:
         #     return idx
